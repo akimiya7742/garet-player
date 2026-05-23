@@ -35,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await fetch(`${backendUrl}/user/me`, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
+          "ngrok-skip-browser-warning": "69420",
         },
       });
 

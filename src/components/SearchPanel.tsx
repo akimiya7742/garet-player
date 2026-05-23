@@ -31,6 +31,7 @@ export const SearchPanel: React.FC = () => {
       const res = await fetch(`${backendUrl}/music/search?q=${encodeURIComponent(searchQuery)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "69420",
         },
       });
 

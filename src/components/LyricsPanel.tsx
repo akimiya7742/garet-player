@@ -131,7 +131,12 @@ export const LyricsPanel: React.FC = () => {
     try {
       const res = await fetch(
         `${backendUrl}/music/lyrics?q=${encodeURIComponent(queryText)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "69420",
+          },
+        }
       );
 
       if (res.ok) {
