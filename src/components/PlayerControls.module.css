@@ -1,0 +1,361 @@
+.playerConsole {
+  display: flex;
+  flex-direction: column;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  justify-content: space-between;
+  min-height: 480px;
+}
+
+/* Stunning ambient blur sleeve background */
+.ambientCover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.1;
+  filter: blur(60px);
+  transform: scale(1.1);
+  z-index: 0;
+  pointer-events: none;
+  transition: background-image var(--transition-slow);
+}
+
+.topSection,
+.artworkSection,
+.timelineSection,
+.controlsSection,
+.bottomSection {
+  position: relative;
+  z-index: 1;
+}
+
+.topSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.trackDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-active);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.artist {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 4px;
+}
+
+.voiceDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  padding: 4px 10px;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.badgeIcon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Vinyl artwork container */
+.artworkSection {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 20px 0;
+}
+
+.vinylWrapper {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 8px rgba(255, 255, 255, 0.02);
+  border: 4px solid #111;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artworkImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.vinylCenter {
+  width: 40px;
+  height: 40px;
+  background: var(--bg-primary);
+  border-radius: 50%;
+  position: absolute;
+  border: 4px solid #222;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.8);
+}
+
+.rotating {
+  animation: rotateVinyl 25s linear infinite;
+}
+
+@keyframes rotateVinyl {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Progress timelines styles */
+.timelineSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.timeInfo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.timelineSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.timelineSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-active);
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.timelineSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+  background: var(--accent-primary);
+}
+
+.timelineSlider:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Media center layouts */
+.controlsSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.leftControls, .rightControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+.rightControls {
+  justify-content: flex-end;
+}
+
+.centerControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.iconBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 10px;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.iconBtn:hover:not(:disabled) {
+  color: var(--text-active);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.iconBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.controlIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.activeBtn {
+  color: var(--accent-primary) !important;
+  border-color: var(--accent-primary-glow);
+  background: rgba(139, 92, 246, 0.1) !important;
+  box-shadow: 0 0 12px var(--accent-primary-glow);
+}
+
+.activeLock {
+  color: var(--accent-warning) !important;
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.1) !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+.repeatBadge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: var(--accent-primary);
+  color: var(--text-active);
+  font-size: 0.6rem;
+  font-weight: 700;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mediaBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.mediaBtn:hover:not(:disabled) {
+  color: var(--text-active);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mediaBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.mediaIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.playPauseBtn {
+  background: var(--text-active) !important;
+  color: var(--bg-primary) !important;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.15);
+}
+
+.playPauseBtn:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.3);
+}
+
+.playPauseIcon {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+
+.playIconFix {
+  margin-left: 2px; /* Fix standard icon alignment centering issue */
+}
+
+/* Volume layouts */
+.bottomSection {
+  border-top: 1px solid var(--glass-border);
+  padding-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.volumeWrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 8px 20px;
+  border-radius: 30px;
+}
+
+.volumeIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .playerConsole {
+    padding: 20px;
+    min-height: 440px;
+  }
+  .title {
+    font-size: 1.3rem;
+  }
+  .vinylWrapper {
+    width: 140px;
+    height: 140px;
+  }
+}

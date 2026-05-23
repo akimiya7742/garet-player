@@ -1,26 +1,221 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
+/* Dynamic CSS Design System Variables */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-title: 'Outfit', sans-serif;
+  
+  /* Modern Dark Palette */
+  --bg-primary: #080810;
+  --bg-secondary: #0c0d1b;
+  --bg-ambient-g1: rgba(124, 58, 237, 0.2); /* Neon Violet */
+  --bg-ambient-g2: rgba(236, 72, 153, 0.15); /* Soft Pink */
+  --bg-ambient-g3: rgba(59, 130, 246, 0.2); /* Cyber Blue */
+
+  /* Glassmorphism Configuration */
+  --glass-bg: rgba(15, 17, 34, 0.55);
+  --glass-bg-hover: rgba(22, 25, 48, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-focus: rgba(124, 58, 237, 0.5);
+  --glass-shadow: rgba(0, 0, 0, 0.4);
+  
+  /* Brand Accents */
+  --accent-primary: #8b5cf6;
+  --accent-primary-glow: rgba(139, 92, 246, 0.4);
+  --accent-secondary: #ec4899;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+
+  /* Typography Colors */
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-active: #ffffff;
+
+  /* Dimensions & Spacing */
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-xl: 32px;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Global Reset & Base Layout */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+  line-height: 1.5;
+}
+
+/* Premium Dynamic Ambient Backdrop */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: 
+    radial-gradient(circle at 10% 20%, var(--bg-ambient-g1) 0%, transparent 40%),
+    radial-gradient(circle at 90% 10%, var(--bg-ambient-g2) 0%, transparent 45%),
+    radial-gradient(circle at 50% 80%, var(--bg-ambient-g3) 0%, transparent 50%),
+    #05060d;
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Animated interactive glow that adapts to mouse or track changes */
+.ambient-glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, var(--accent-primary-glow) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(120px);
+  opacity: 0.65;
+  transition: background var(--transition-slow), opacity var(--transition-slow);
+  animation: floatAmbient 12s ease-in-out infinite alternate;
+}
+
+@keyframes floatAmbient {
+  0% {
+    transform: translate(-55%, -45%) scale(1);
+  }
+  100% {
+    transform: translate(-45%, -55%) scale(1.15);
+  }
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Glassmorphism Structural Classes */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 8px 32px 0 var(--glass-shadow);
+  transition: border var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.glass-panel-hover:hover {
+  background: var(--glass-bg-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.glass-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 12px var(--accent-primary-glow);
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  padding: 10px 20px;
+  transition: all var(--transition-fast);
+  gap: 8px;
+}
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+.glass-btn:active {
+  transform: translateY(1px);
+}
+.glass-btn-primary {
+  background: var(--accent-primary);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 14px 0 var(--accent-primary-glow);
+}
+.glass-btn-primary:hover {
+  background: #9d76fa;
+  box-shadow: 0 6px 20px 0 var(--accent-primary-glow);
+}
+
+/* Micro-animations and utility effects */
+.glow-text {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3), 0 0 20px var(--accent-primary-glow);
+}
+.pulse-glow {
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--accent-primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-primary-glow), 0 0 30px rgba(139, 92, 246, 0.6);
+  }
+}
+
+/* Layout Utilities */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 12px;
+    gap: 16px;
+  }
 }

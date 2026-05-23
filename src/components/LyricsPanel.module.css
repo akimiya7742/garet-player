@@ -1,0 +1,209 @@
+.lyricsContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 480px;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.titleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headerIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent-secondary);
+}
+
+.title {
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.syncBadge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #fff;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.45);
+  vertical-align: middle;
+  animation: syncPulse 2s ease-in-out infinite;
+}
+
+@keyframes syncPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(168, 85, 247, 0.4); }
+  50%       { box-shadow: 0 0 14px rgba(168, 85, 247, 0.8); }
+}
+
+.refreshBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.refreshBtn:hover {
+  color: var(--text-active);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.refreshIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.spinning {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.searchBar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+}
+
+.searchBtn {
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  border-radius: var(--border-radius-sm);
+}
+
+.scrollArea {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  gap: 12px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-secondary);
+  animation: spin 1s linear infinite;
+}
+
+.errorState, .emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  text-align: center;
+  padding: 20px;
+}
+
+.errorIcon, .emptyIcon {
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  opacity: 0.7;
+}
+
+.errorText, .emptyText {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+}
+
+.errorSubtext, .emptySubtext {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-width: 240px;
+}
+
+.lyricsList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 4px;
+  text-align: center;
+}
+
+.lyricsLine {
+  font-family: var(--font-title);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.35);
+  transition: all var(--transition-normal);
+  cursor: default;
+  user-select: none;
+  transform-origin: center;
+}
+
+.lyricsLine:hover {
+  color: var(--text-active);
+  transform: scale(1.03);
+}
+
+.lyricsLineActive {
+  color: var(--text-active) !important;
+  font-weight: 700 !important;
+  font-size: 1.25rem !important;
+  text-shadow: 0 0 16px rgba(255, 255, 255, 0.8), 0 0 24px var(--accent-primary);
+  transform: scale(1.08);
+  opacity: 1 !important;
+}
+
+.lyricsLinePast {
+  color: rgba(255, 255, 255, 0.18) !important;
+  transform: scale(0.97);
+}
+
+.breakLine {
+  color: rgba(255, 255, 255, 0.1);
+  font-size: 0.8rem;
+}
