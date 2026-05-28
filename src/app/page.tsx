@@ -11,13 +11,14 @@ import RelatedPanel from "../components/RelatedPanel";
 import Visualizer from "../components/Visualizer";
 import { 
   LogIn, LogOut, Search, ListMusic, FileText, 
-  MessageSquare, Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles
+  MessageSquare, Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
+  Loader2
 } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function Home() {
   const { user, isAuthenticated, loading, login, logout, setAuthToken } = useAuth();
-  const { isConnected, isWSAuthenticated, voiceConnection, getVoiceConnection, statistics, errorMsg } = useMusicWS();
+  const { isConnected, isWSAuthenticated, voiceConnection, getVoiceConnection, statistics, errorMsg, joinVoice } = useMusicWS();
   
   // Tab states for managing search, queue, and lyrics views
   const [activeTab, setActiveTab] = useState<"search" | "queue" | "lyrics" | "related">("search");
@@ -27,6 +28,15 @@ export default function Home() {
 
   // Local state to track and display active toasts/errors
   const [activeError, setActiveError] = useState<string | null>(null);
+
+  // Local state to track join voice API loading
+  const [isJoining, setIsJoining] = useState(false);
+
+  const handleJoinVoice = async () => {
+    setIsJoining(true);
+    await joinVoice();
+    setIsJoining(false);
+  };
 
   // Intercept the Discord auth callback hash de-opt redirect (/#/login-success)
   useEffect(() => {
@@ -222,14 +232,33 @@ export default function Home() {
                 <p className={styles.warningText}>
                   Please connect to any voice channel in Discord and query a track with the music bot. The dashboard will automatically sync and unlock playback.
                 </p>
-                <button 
-                  type="button"
-                  onClick={getVoiceConnection} 
-                  className={`glass-btn ${styles.retryVoiceBtn}`}
-                >
-                  <RefreshCw style={{ width: "14px", height: "14px" }} />
-                  Sync Voice Node
-                </button>
+                <div className={styles.warningActions}>
+                  <button 
+                    type="button"
+                    onClick={handleJoinVoice}
+                    disabled={isJoining}
+                    className={`glass-btn ${styles.joinVoiceBtn}`}
+                    title="Automatically join voice"
+                  >
+                    {isJoining ? (
+                      <Loader2 className={styles.spinIcon} />
+                    ) : (
+                      <Sparkles style={{ width: "14px", height: "14px" }} />
+                    )}
+                    <span>Automatically Join Voice</span>
+                    <span className={styles.betaLabel}>Beta</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={getVoiceConnection} 
+                    className={`glass-btn ${styles.retryVoiceBtn}`}
+                    title="Sync voice state"
+                  >
+                    <RefreshCw style={{ width: "14px", height: "14px" }} />
+                    <span>Sync Voice Node</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className={styles.tabSection}>

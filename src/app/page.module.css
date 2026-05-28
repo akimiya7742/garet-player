@@ -367,13 +367,83 @@
   max-width: 440px;
 }
 
+.warningActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.joinVoiceBtn {
+  font-size: 0.85rem;
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: var(--accent-primary); /* Glowing purple-pink accent! */
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px var(--accent-primary-glow);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 550;
+}
+
+.joinVoiceBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px var(--accent-primary-glow);
+  filter: brightness(1.1);
+}
+
+.joinVoiceBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.betaLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(168, 85, 247, 0.25);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  display: inline-block;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
 .retryVoiceBtn {
   font-size: 0.85rem;
   padding: 10px 20px;
   border-radius: 20px;
-  background: var(--accent-primary);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px var(--accent-primary-glow);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.retryVoiceBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.spinIcon {
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .tabSection {

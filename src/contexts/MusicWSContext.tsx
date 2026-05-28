@@ -37,6 +37,7 @@ interface MusicWSContextType {
   playNextTrack: (trackUrl: string, listIndexPosition: number) => void;
   removeTrack: (listIndexPosition: number) => void;
   getVoiceConnection: () => void;
+  joinVoice: () => Promise<boolean>;
 }
 
 interface Statistics {
@@ -226,6 +227,34 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const getVoiceConnection = useCallback(() => sendEvent("GetVoice"), [sendEvent]);
 
+  const joinVoice = useCallback(async (): Promise<boolean> => {
+    if (!token) return false;
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${backendUrl}/music/join`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "69420",
+        },
+      });
+
+      if (res.ok) {
+        // Voice successfully joined. Request updated voice connection status from WS
+        getVoiceConnection();
+        return true;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.error || data.message || "Failed to automatically join voice channel.");
+        return false;
+      }
+    } catch (err) {
+      console.error("[WS/API] Error joining voice:", err);
+      setErrorMsg("Network error occurred while trying to join voice.");
+      return false;
+    }
+  }, [backendUrl, token, getVoiceConnection]);
+
   return (
     <MusicWSContext.Provider
       value={{
@@ -247,6 +276,7 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         playNextTrack,
         removeTrack,
         getVoiceConnection,
+        joinVoice,
       }}
     >
       {children}
