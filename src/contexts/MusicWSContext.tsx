@@ -99,7 +99,7 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     console.log(`[WS] Connecting to ${wsTarget}...`);
-    const ws = new WebSocket(wsTarget);
+    const ws = new WebSocket(`${wsTarget}/ws`);
     wsRef.current = ws;
 
     ws.onopen = () => {
