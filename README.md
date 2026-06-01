@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# garet-player
 
-## Getting Started
+> Discord music bot player
 
-First, run the development server:
+![License](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/badge/version-1.2.5-blue) ![Language](https://img.shields.io/badge/language-TypeScript-yellow) ![Framework](https://img.shields.io/badge/framework-NextJS-orange) ![GitHub](https://img.shields.io/badge/GitHub-akimiya7742/garet-player-black?logo=github) ![Build Status](https://img.shields.io/github/actions/workflow/status/akimiya7742/garet-player/ci.yml?branch=main)
 
-```bash
+## 📋 Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Screenshots](#screenshots)
+
+## ℹ️ Project Information
+
+- **👤 Author:** akimiya7742
+- **📦 Version:** 1.2.5
+- **📄 License:** MIT
+- **🌐 Website:** [https://garret-player.vercel.app](https://garret-player.vercel.app)
+- **📂 Repository:** [https://github.com/akimiya7742/garet-player](https://github.com/akimiya7742/garet-player)
+- **🏷️ Keywords:** discord-bot, nextjs
+
+## Features
+
+- Discord Authentication
+- Control music player from any devices
+- Support search / lyrics / queue / ...
+- Automatically join voice (beta)
+- Modern and sleek UI
+
+## Installation
+
+1. Clone the repository
+```sh
+git clone https://github.com/akimiya7742/garet-player
+```
+2. Install packages
+```sh
+npm install
+```
+3. Configure the environment variables
+```
+NEXT_PUBLIC_BACKEND_API_URL= # get from the main bot repository
+```
+4. Run the server
+```
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Screenshots
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+<table>
+  <tr>
+    <td>
+      <img src="images/screenshot1.png" width="480" alt="Screenshot 1">
+    </td>
+    <td>
+      <img src="images/screenshot2.png" width="480" alt="Screenshot 2">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="images/screenshot3.png" width="480" alt="Screenshot 3">
+    </td>
+    <td>
+      <img src="images/screenshot4.png" width="480" alt="Screenshot 4">
+    </td>
+  </tr>
+</table>
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
