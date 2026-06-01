@@ -331,7 +331,6 @@ export default function Home() {
           >
             <img 
               src={statistics.track.thumbnail || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=200"} 
-              alt="Track Artwork" 
               className={styles.mobileArt}
             />
             <div className={styles.mobileInfo}>
