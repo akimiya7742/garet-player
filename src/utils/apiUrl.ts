@@ -29,9 +29,9 @@ export const getApiUrl = (backendUrl: string, endpoint: string): string => {
  */
 export const getWSUrl = (backendUrl: string): string => {
   if (isDiscordActivity()) {
-    return "/api/ws";
+    return "/api";
   }
   
   if (!backendUrl) return "";
-  return `${backendUrl}/ws`;
+  return `${backendUrl}`;
 };
