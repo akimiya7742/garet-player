@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { getApiUrl, isDiscordActivity } from "../utils/apiUrl";
 
 interface UserProfile {
   id: string;
@@ -62,7 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (jwtToken: string) => {
     try {
-      const res = await fetch(`${backendUrl}/user/me`, {
+      const url = getApiUrl(backendUrl, "user/me");
+      const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
           "ngrok-skip-browser-warning": "69420",
@@ -158,12 +160,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      // Check chuẩn bài theo tài liệu Discord
-      const isDiscordActivity = urlParams.has("frame_id") || window.location.ancestorOrigins?.contains("https://discord.com");
-      setIsActivity(!!isDiscordActivity);
+      const isActivity = isDiscordActivity();
+      setIsActivity(!!isActivity);
 
-      if (isDiscordActivity) {
+      if (isActivity) {
         performDiscordActivityAuth();
       } else {
         const storedToken = safeGetToken();
@@ -181,7 +181,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isActivity) {
         performDiscordActivityAuth();
       } else {
-        window.location.href = `${backendUrl}/auth/discord/login`;
+        const url = getApiUrl(backendUrl, "auth/discord/login");
+        window.location.href = url;
       }
     }
   };

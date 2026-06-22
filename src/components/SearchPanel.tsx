@@ -5,6 +5,7 @@ import { Search, Loader2, Play, Music } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useMusicWS } from "../contexts/MusicWSContext";
 import { formatDuration } from "./QueueList";
+import { getApiUrl } from "../utils/apiUrl";
 import styles from "./SearchPanel.module.css";
 
 export const SearchPanel: React.FC = () => {
@@ -28,12 +29,7 @@ export const SearchPanel: React.FC = () => {
 		setError(null);
 
 		try {
-			let url = `${backendUrl}/music/search?q=${encodeURIComponent(searchQuery)}`;
-			if (typeof window !== "undefined") {
-				const urlParams = new URLSearchParams(window.location.search);
-				const isDiscordActivity = urlParams.has("frame_id") || window.location.ancestorOrigins?.contains("https://discord.com");
-				if (isDiscordActivity)url = (`/api/music/search?q=${encodeURIComponent(searchQuery)}`);;
-			}
+			const url = `${getApiUrl(backendUrl, "music/search")}?q=${encodeURIComponent(searchQuery)}`;
 			const res = await fetch(url, {
 				headers: {
 					Authorization: `Bearer ${token}`,

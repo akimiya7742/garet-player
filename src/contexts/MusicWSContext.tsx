@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./AuthContext";
+import { getApiUrl, getWSUrl as getWSUrlFromUtils } from "../utils/apiUrl";
 
 export interface Track {
   title: string;
@@ -69,22 +70,9 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
   
-  // Convert http/https URL to ws/wss URL
+  // Use the getWSUrl utility instead of local implementation
   const getWSUrl = useCallback((httpUrl: string) => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      // Check chuẩn bài theo tài liệu Discord
-      const isDiscordActivity = urlParams.has("frame_id") || window.location.ancestorOrigins?.contains("https://discord.com");
-
-      if (isDiscordActivity) {
-        return '/api/ws'; // Use relative path for Discord activity
-      }
-    } else {
-        if (!httpUrl) return "";
-        let wsUrl = httpUrl.replace(/^http/, "ws");
-        // Ensure it ends properly for WS connection
-        return wsUrl;
-    }
+    return getWSUrlFromUtils(httpUrl);
   }, []);
 
   const sendEvent = useCallback((event: string, data: Record<string, any> = {}) => {
@@ -241,7 +229,8 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!token) return false;
     setErrorMsg(null);
     try {
-      const res = await fetch(`${backendUrl}/music/join`, {
+      const url = getApiUrl(backendUrl, "music/join");
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

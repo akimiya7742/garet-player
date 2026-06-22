@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Music, FileText, Loader2, RefreshCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { useMusicWS } from "../contexts/MusicWSContext";
-import styles from "./LyricsPanel.module.css";
+import { useMusicWS } from "../contexts/MusicWSContext";import { getApiUrl } from \"../utils/apiUrl\";import styles from "./LyricsPanel.module.css";
 
 interface SyncedLine {
   time: number; // milliseconds; -1 = unsynced plain text
@@ -129,9 +128,8 @@ export const LyricsPanel: React.FC = () => {
     setCurrentLineIndex(-1);
 
     try {
-      const res = await fetch(
-        `${backendUrl}/music/lyrics?q=${encodeURIComponent(queryText)}`,
-        {
+      const url = `${getApiUrl(backendUrl, \"music/lyrics\")}?q=${encodeURIComponent(queryText)}`;
+      const res = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
             "ngrok-skip-browser-warning": "69420",
