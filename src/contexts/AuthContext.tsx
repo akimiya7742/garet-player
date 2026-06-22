@@ -16,6 +16,7 @@ interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   loading: boolean;
+  isActivity: boolean;
   login: () => void;
   logout: () => void;
   setAuthToken: (token: string) => void;
@@ -27,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isActivity, setIsActivity] = useState(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
 
@@ -62,20 +64,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
+  const performDiscordActivityAuth = async () => {
+    setLoading(true);
+    try {
+      console.log("[Auth] Initializing Discord Activity Auth...");
+      const { DiscordSDK } = await import("@discord/embedded-app-sdk");
+      const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
+      
+      if (!clientId) {
+        throw new Error("NEXT_PUBLIC_DISCORD_CLIENT_ID is not configured in .env");
+      }
+
+      const discordSdk = new DiscordSDK(clientId);
+      await discordSdk.ready();
+
+      console.log("[Auth] Discord SDK ready, authorizing...");
+      const auth = await discordSdk.commands.authorize({
+        client_id: clientId,
+        response_type: "code",
+        state: "",
+        prompt: "none",
+        scope: ["identify", "guilds"],
+      });
+
+      if (!auth.code) {
+        throw new Error("No authorization code returned from Discord");
+      }
+
+      console.log("[Auth] Exchanging code for JWT token...");
+      const res = await fetch(`${backendUrl}/auth/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "69420",
+        },
+        body: JSON.stringify({ code: auth.code }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Token exchange failed: ${errText}`);
+      }
+
+      const data = await res.json();
+      console.log("[Auth] Token exchange succeeded for:", data.user?.username);
+      
+      // Store token and load profile details
+      localStorage.setItem("discord_music_token", data.token);
+      await fetchUserProfile(data.token);
+    } catch (err) {
+      console.error("[Auth] Discord Activity auth failed:", err);
+      // Fallback: see if we have a stored token
       const storedToken = localStorage.getItem("discord_music_token");
       if (storedToken) {
-        fetchUserProfile(storedToken);
+        console.log("[Auth] Falling back to stored localStorage token...");
+        await fetchUserProfile(storedToken);
       } else {
         setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isDiscordActivity = urlParams.has("frame_id") || urlParams.has("channel_id");
+      setIsActivity(isDiscordActivity);
+
+      if (isDiscordActivity) {
+        performDiscordActivityAuth();
+      } else {
+        const storedToken = localStorage.getItem("discord_music_token");
+        if (storedToken) {
+          fetchUserProfile(storedToken);
+        } else {
+          setLoading(false);
+        }
       }
     }
   }, []);
 
   const login = () => {
     if (typeof window !== "undefined") {
-      window.location.href = `${backendUrl}/auth/discord/login`;
+      if (isActivity) {
+        performDiscordActivityAuth();
+      } else {
+        window.location.href = `${backendUrl}/auth/discord/login`;
+      }
     }
   };
 
@@ -102,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isAuthenticated,
         loading,
+        isActivity,
         login,
         logout,
         setAuthToken,

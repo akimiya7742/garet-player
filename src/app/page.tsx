@@ -17,7 +17,7 @@ import {
 import styles from "./page.module.css";
 
 export default function Home() {
-  const { user, isAuthenticated, loading, login, logout, setAuthToken } = useAuth();
+  const { user, isAuthenticated, loading, isActivity, login, logout, setAuthToken } = useAuth();
   const { isConnected, isWSAuthenticated, voiceConnection, getVoiceConnection, statistics, errorMsg, joinVoice } = useMusicWS();
   
   // Tab states for managing search, queue, and lyrics views
@@ -91,7 +91,9 @@ export default function Home() {
       <div className={styles.loadingWrapper}>
         <div className="glass-panel" style={{ padding: "40px", textAlign: "center" }}>
           <div className={styles.pulseSpinner} />
-          <h2 style={{ fontFamily: "var(--font-title)", marginTop: "20px" }}>Loading Music System...</h2>
+          <h2 style={{ fontFamily: "var(--font-title)", marginTop: "20px" }}>
+            {isActivity ? "Authorizing with Discord..." : "Loading Music System..."}
+          </h2>
         </div>
       </div>
     );
@@ -130,7 +132,7 @@ export default function Home() {
               style={{ padding: "14px 32px", fontSize: "1.05rem", borderRadius: "30px" }}
             >
               <LogIn style={{ width: "20px", height: "20px" }} />
-              Connect with Discord
+              {isActivity ? "Authorize Activity" : "Connect with Discord"}
             </button>
           </div>
 
