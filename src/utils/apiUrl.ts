@@ -33,5 +33,5 @@ export const getWSUrl = (backendUrl: string): string => {
   }
   
   if (!backendUrl) return "";
-  return backendUrl.replace(/^http/, "ws");
+  return `${backendUrl}/ws`;
 };
