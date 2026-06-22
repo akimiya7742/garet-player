@@ -71,10 +71,20 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   
   // Convert http/https URL to ws/wss URL
   const getWSUrl = useCallback((httpUrl: string) => {
-    if (!httpUrl) return "";
-    let wsUrl = httpUrl.replace(/^http/, "ws");
-    // Ensure it ends properly for WS connection
-    return wsUrl;
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      // Check chuẩn bài theo tài liệu Discord
+      const isDiscordActivity = urlParams.has("frame_id") || window.location.ancestorOrigins?.contains("https://discord.com");
+
+      if (isDiscordActivity) {
+        return '/api/ws'; // Use relative path for Discord activity
+      }
+    } else {
+        if (!httpUrl) return "";
+        let wsUrl = httpUrl.replace(/^http/, "ws");
+        // Ensure it ends properly for WS connection
+        return wsUrl;
+    }
   }, []);
 
   const sendEvent = useCallback((event: string, data: Record<string, any> = {}) => {

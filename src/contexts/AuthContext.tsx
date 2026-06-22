@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 
 interface UserProfile {
   id: string;
@@ -24,13 +24,41 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Biến global để giữ token trong bộ nhớ (Memory Storage) phòng khi localStorage bị block trong iframe
+let memoryToken: string | null = null;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isActivity, setIsActivity] = useState(false);
+  
+  // Dùng ref để tránh việc useEffect trigger loop hoặc gọi song song nhiều lần
+  const isAuthenticating = useRef(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
+
+  // Helper an toàn để tương tác với localStorage trong iframe
+  const safeGetToken = (): string | null => {
+    try {
+      return localStorage.getItem("discord_music_token") || memoryToken;
+    } catch (e) {
+      return memoryToken;
+    }
+  };
+
+  const safeSetToken = (newToken: string | null) => {
+    memoryToken = newToken;
+    try {
+      if (newToken) {
+        localStorage.setItem("discord_music_token", newToken);
+      } else {
+        localStorage.removeItem("discord_music_token");
+      }
+    } catch (e) {
+      console.warn("[Auth] LocalStorage restricted, using memory storage instead.");
+    }
+  };
 
   const fetchUserProfile = async (jwtToken: string) => {
     try {
@@ -45,27 +73,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = await res.json();
         setUser(userData);
         setToken(jwtToken);
+        safeSetToken(jwtToken);
       } else {
-        // Token might have expired or is invalid
         clearAuth();
       }
     } catch (err) {
       console.error("[Auth] Error fetching user profile:", err);
-      // We don't clear session on simple network errors, but we keep checking
     } finally {
       setLoading(false);
     }
   };
 
   const clearAuth = () => {
-    localStorage.removeItem("discord_music_token");
+    safeSetToken(null);
     setToken(null);
     setUser(null);
     setLoading(false);
   };
 
   const performDiscordActivityAuth = async () => {
+    if (isAuthenticating.current) return;
+    isAuthenticating.current = true;
     setLoading(true);
+
     try {
       console.log("[Auth] Initializing Discord Activity Auth...");
       const { DiscordSDK } = await import("@discord/embedded-app-sdk");
@@ -76,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const discordSdk = new DiscordSDK(clientId);
+      // Wait for SDK setup to complete
       await discordSdk.ready();
 
       console.log("[Auth] Discord SDK ready, authorizing...");
@@ -92,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       console.log("[Auth] Exchanging code for JWT token...");
-      const res = await fetch(`${backendUrl}/auth/token`, {
+      const res = await fetch(`/aauth/auth/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -109,32 +140,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await res.json();
       console.log("[Auth] Token exchange succeeded for:", data.user?.username);
       
-      // Store token and load profile details
-      localStorage.setItem("discord_music_token", data.token);
       await fetchUserProfile(data.token);
     } catch (err) {
       console.error("[Auth] Discord Activity auth failed:", err);
-      // Fallback: see if we have a stored token
-      const storedToken = localStorage.getItem("discord_music_token");
+      // Fallback
+      const storedToken = safeGetToken();
       if (storedToken) {
-        console.log("[Auth] Falling back to stored localStorage token...");
+        console.log("[Auth] Falling back to stored token...");
         await fetchUserProfile(storedToken);
       } else {
         setLoading(false);
       }
+    } finally {
+      isAuthenticating.current = false;
     }
   };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const isDiscordActivity = urlParams.has("frame_id") || urlParams.has("channel_id");
-      setIsActivity(isDiscordActivity);
+      // Check chuẩn bài theo tài liệu Discord
+      const isDiscordActivity = urlParams.has("frame_id") || window.location.ancestorOrigins?.contains("https://discord.com");
+      setIsActivity(!!isDiscordActivity);
 
       if (isDiscordActivity) {
         performDiscordActivityAuth();
       } else {
-        const storedToken = localStorage.getItem("discord_music_token");
+        const storedToken = safeGetToken();
         if (storedToken) {
           fetchUserProfile(storedToken);
         } else {
@@ -156,14 +188,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     clearAuth();
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && !isActivity) {
       window.location.href = "/";
     }
   };
 
   const setAuthToken = (newToken: string) => {
-    localStorage.setItem("discord_music_token", newToken);
     setToken(newToken);
+    safeSetToken(newToken);
     setLoading(true);
     fetchUserProfile(newToken);
   };
