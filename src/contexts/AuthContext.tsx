@@ -163,6 +163,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isActivity = isDiscordActivity();
       setIsActivity(!!isActivity);
 
+      // Listen for authentication tokens sent from popup login window
+      const handleAuthMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === "DISCORD_AUTH_SUCCESS" && event.data.token) {
+          console.log("[Auth] Successfully received token via popup message event.");
+          setAuthToken(event.data.token);
+        }
+      };
+      window.addEventListener("message", handleAuthMessage);
+
       if (isActivity) {
         performDiscordActivityAuth();
       } else {
@@ -173,6 +182,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         }
       }
+
+      return () => {
+        window.removeEventListener("message", handleAuthMessage);
+      };
     }
   }, []);
 
@@ -182,7 +195,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         performDiscordActivityAuth();
       } else {
         const url = getApiUrl(backendUrl, "auth/discord/login");
-        window.location.href = url;
+        
+        // When running in an iframe or standalone browser, open Discord auth in a dedicated popup window
+        // to prevent Discord from blocking iframe embedding (X-Frame-Options: SAMEORIGIN)
+        const width = 540;
+        const height = 820;
+        const left = typeof window.screenX !== "undefined" ? window.screenX + Math.max(0, (window.outerWidth - width) / 2) : 100;
+        const top = typeof window.screenY !== "undefined" ? window.screenY + Math.max(0, (window.outerHeight - height) / 2) : 100;
+        
+        const popup = window.open(
+          url,
+          "discord_auth_popup",
+          `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+        );
+
+        if (!popup || popup.closed || typeof popup.closed === "undefined") {
+          // Popup blocked or not supported: fallback to open in new tab
+          console.warn("[Auth] Popup blocked by browser, falling back to new tab");
+          window.open(url, "_blank");
+        } else {
+          // Monitor popup status and localStorage synchronization
+          const pollTimer = setInterval(() => {
+            const stored = safeGetToken();
+            if (stored && stored !== token) {
+              setAuthToken(stored);
+              clearInterval(pollTimer);
+              if (popup && !popup.closed) popup.close();
+            }
+            if (popup.closed) {
+              clearInterval(pollTimer);
+            }
+          }, 800);
+        }
       }
     }
   };

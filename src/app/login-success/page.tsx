@@ -13,12 +13,38 @@ function LoginSuccessContent() {
   useEffect(() => {
     const token = searchParams.get("token");
     if (token) {
+      // Store token safely
+      try {
+        localStorage.setItem("discord_music_token", token);
+      } catch (e) {
+        console.warn("[LoginSuccess] localStorage access warning:", e);
+      }
+
       setAuthToken(token);
-      // Let's delay the redirect slightly for visual confirmation of successful sync
-      const timer = setTimeout(() => {
-        router.push("/");
-      }, 1000);
-      return () => clearTimeout(timer);
+
+      // If opened as a popup from parent iframe / window
+      if (typeof window !== "undefined" && window.opener) {
+        try {
+          window.opener.postMessage(
+            { type: "DISCORD_AUTH_SUCCESS", token },
+            "*"
+          );
+        } catch (err) {
+          console.error("[LoginSuccess] Failed to send postMessage to opener:", err);
+        }
+
+        // Auto close the popup after brief confirmation
+        const closeTimer = setTimeout(() => {
+          window.close();
+        }, 800);
+        return () => clearTimeout(closeTimer);
+      } else {
+        // Direct navigation redirect
+        const timer = setTimeout(() => {
+          router.push("/");
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
     } else {
       router.push("/");
     }

@@ -298,6 +298,35 @@
   100% { opacity: 1; }
 }
 
+.clearCacheBtn {
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 30px;
+  background: rgba(236, 72, 153, 0.08);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  color: #f472b6;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.clearCacheBtn:hover {
+  background: rgba(236, 72, 153, 0.16);
+  border-color: rgba(236, 72, 153, 0.45);
+  color: #fbcfe8;
+  transform: translateY(-1px);
+}
+
+.clearCacheBtnSuccess {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+.clearCacheIcon {
+  width: 13px;
+  height: 13px;
+}
+
 .logoutBtn {
   font-size: 0.8rem;
   padding: 8px 14px;

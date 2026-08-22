@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Music, FileText, Loader2, RefreshCw } from "lucide-react";
+import { Music, FileText, Loader2, RefreshCw, Languages, Sparkles } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { useMusicWS } from "../contexts/MusicWSContext";import { getApiUrl } from "../utils/apiUrl";import styles from "./LyricsPanel.module.css";
+import { useMusicWS } from "../contexts/MusicWSContext";
+import { getApiUrl } from "../utils/apiUrl";
+import { hasJapaneseInLines, hasJapanese, romanizeLyricsLines } from "../utils/japanese";
+import { getLyricsCacheKey, getStoredLyrics, saveStoredLyrics } from "../utils/lyricsCache";
+import styles from "./LyricsPanel.module.css";
 
 interface SyncedLine {
   time: number; // milliseconds; -1 = unsynced plain text
@@ -105,6 +109,14 @@ export const LyricsPanel: React.FC = () => {
   const [isSynced, setIsSynced]           = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
 
+  // Japanese Romanization States
+  const [romajiMode, setRomajiMode]       = useState<"both" | "romaji" | "off">("both");
+  const [romanizedLines, setRomanizedLines] = useState<string[]>([]);
+  const [isRomanizing, setIsRomanizing]   = useState(false);
+
+  // Detect if current lyrics contain Japanese (Hiragana, Katakana, Kanji)
+  const isJapaneseLyrics = hasJapanese(lyrics) || hasJapaneseInLines(syncedLines);
+
   // FIX #2: store local playback time in a ref and only use setState for active-line changes
   // This avoids the "sync override kills ticking" problem entirely.
   const localTimeRef   = useRef<number>(statistics?.timestamp ?? 0);
@@ -117,9 +129,56 @@ export const LyricsPanel: React.FC = () => {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
 
+  // ── Auto-Romanize when Japanese lyrics are parsed ─────────────────────────
+  useEffect(() => {
+    if (!lyrics || syncedLines.length === 0 || !isJapaneseLyrics) {
+      setRomanizedLines([]);
+      setIsRomanizing(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsRomanizing(true);
+
+    const rawLines = syncedLines.map((l) => l.text);
+    const cacheKey = `${trackTitle || "lyrics"}_${rawLines.length}_${rawLines.slice(0, 3).join("_")}`;
+
+    romanizeLyricsLines(rawLines, cacheKey)
+      .then((res) => {
+        if (!isCancelled) {
+          setRomanizedLines(res);
+          setIsRomanizing(false);
+        }
+      })
+      .catch((err) => {
+        console.error("[Lyrics] Romanization error:", err);
+        if (!isCancelled) {
+          setIsRomanizing(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle]);
+
   // ── Fetch lyrics ──────────────────────────────────────────────────────────
-  const fetchLyrics = useCallback(async (queryText: string) => {
+  const fetchLyrics = useCallback(async (queryText: string, bypassCache = false) => {
     if (!queryText.trim() || !token) return;
+
+    const cacheKey = getLyricsCacheKey(queryText);
+
+    // Check local storage cache first unless forced bypass
+    if (!bypassCache) {
+      const cached = getStoredLyrics(cacheKey);
+      if (cached) {
+        console.log("[Lyrics] Loaded lyrics from cache for:", queryText);
+        setLyrics(cached);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+    }
 
     setLoading(true);
     setError(null);
@@ -147,6 +206,7 @@ export const LyricsPanel: React.FC = () => {
         if (content) {
           console.log("[Lyrics] Content found, preferSynced:", preferSynced);
           setLyrics(content);
+          saveStoredLyrics(cacheKey, content);
         } else {
           setError("No lyrics found for this track.");
         }
@@ -160,6 +220,19 @@ export const LyricsPanel: React.FC = () => {
       setLoading(false);
     }
   }, [backendUrl, token]);
+
+  // Listen for cache clear event
+  useEffect(() => {
+    const handleCacheCleared = () => {
+      console.log("[Lyrics] Cache cleared notification received.");
+      // Refresh current track if loaded
+      if (trackTitle) {
+        fetchLyrics(trackTitle, true);
+      }
+    };
+    window.addEventListener("lyrics-cache-cleared", handleCacheCleared);
+    return () => window.removeEventListener("lyrics-cache-cleared", handleCacheCleared);
+  }, [trackTitle, fetchLyrics]);
 
   // ── Auto-fetch once when the track changes ───────────────────────────────
   useEffect(() => {
@@ -255,21 +328,65 @@ export const LyricsPanel: React.FC = () => {
             {isSynced && syncedLines.length > 0 && (
               <span className={styles.syncBadge}>SYNCED</span>
             )}
+            {isJapaneseLyrics && (
+              <span className={styles.romajiBadge} title="Japanese lyrics detected">
+                <Languages style={{ width: 11, height: 11 }} />
+                Romaji
+                {isRomanizing && (
+                  <Loader2 style={{ width: 10, height: 10, animation: "spin 1s linear infinite" }} />
+                )}
+              </span>
+            )}
           </h2>
         </div>
-        {hasTrack && (
+        <div className={styles.headerActions}>
+          {hasTrack && (
+            <button
+              type="button"
+              onClick={() => trackTitle && fetchLyrics(trackTitle)}
+              className={styles.refreshBtn}
+              disabled={loading}
+              title="Refresh lyrics"
+              aria-label="Refresh lyrics"
+            >
+              <RefreshCw className={`${styles.refreshIcon} ${loading ? styles.spinning : ""}`} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {isJapaneseLyrics && lyrics && syncedLines.length > 0 && (
+        <div className={styles.romajiControls}>
+          <span className={styles.romajiLabel}>
+            <Sparkles style={{ width: 12, height: 12, color: "var(--accent-secondary)" }} />
+            Romaji Mode:
+          </span>
           <button
             type="button"
-            onClick={() => trackTitle && fetchLyrics(trackTitle)}
-            className={styles.refreshBtn}
-            disabled={loading}
-            title="Refresh lyrics"
-            aria-label="Refresh lyrics"
+            className={`${styles.romajiModeBtn} ${romajiMode === "both" ? styles.romajiModeBtnActive : ""}`}
+            onClick={() => setRomajiMode("both")}
+            title="Show Japanese Kanji/Kana with Romaji subtext"
           >
-            <RefreshCw className={`${styles.refreshIcon} ${loading ? styles.spinning : ""}`} />
+            JP + Romaji
           </button>
-        )}
-      </div>
+          <button
+            type="button"
+            className={`${styles.romajiModeBtn} ${romajiMode === "romaji" ? styles.romajiModeBtnActive : ""}`}
+            onClick={() => setRomajiMode("romaji")}
+            title="Show Romaji only"
+          >
+            Romaji Only
+          </button>
+          <button
+            type="button"
+            className={`${styles.romajiModeBtn} ${romajiMode === "off" ? styles.romajiModeBtnActive : ""}`}
+            onClick={() => setRomajiMode("off")}
+            title="Show original Japanese text only"
+          >
+            Original
+          </button>
+        </div>
+      )}
 
       {hasTrack && (
         <form onSubmit={handleManualSearch} className={styles.searchBar}>
@@ -316,22 +433,61 @@ export const LyricsPanel: React.FC = () => {
             {syncedLines.map((line, idx) => {
               const isActive = idx === currentLineIndex;
               const isPast   = isSynced && idx < currentLineIndex;
+              const romajiLine = romanizedLines[idx] || "";
+              const hasRomaji =
+                isJapaneseLyrics &&
+                romajiLine &&
+                romajiLine.trim() !== "" &&
+                romajiLine !== line.text &&
+                !hasJapanese(romajiLine);
+
+              let mainText = line.text;
+              let subText: string | null = null;
+
+              if (romajiMode === "romaji" && hasRomaji) {
+                mainText = romajiLine;
+              } else if (romajiMode === "both" && hasRomaji) {
+                mainText = line.text;
+                subText = romajiLine;
+              }
 
               return (
-                <p
+                <div
                   key={idx}
                   ref={isActive ? activeLineRef : null}
                   className={[
-                    styles.lyricsLine,
-                    isActive ? styles.lyricsLineActive : "",
-                    isPast   ? styles.lyricsLinePast   : "",
-                    line.text === "" ? styles.breakLine : "",
+                    styles.lyricsLineContainer,
+                    isActive ? styles.lyricsLineContainerActive : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
                 >
-                  {line.text === "" ? "•" : line.text}
-                </p>
+                  <p
+                    className={[
+                      styles.lyricsLine,
+                      isActive ? styles.lyricsLineActive : "",
+                      isPast   ? styles.lyricsLinePast   : "",
+                      line.text === "" ? styles.breakLine : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {mainText === "" ? "•" : mainText}
+                  </p>
+                  {subText && (
+                    <span
+                      className={[
+                        styles.romajiSubline,
+                        isActive ? styles.romajiSublineActive : "",
+                        isPast   ? styles.romajiSublinePast   : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {subText}
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

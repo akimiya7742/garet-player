@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  allowedDevOrigins: [
+    "*.run.app",
+    "ais-dev-af25rey5a3wy6l7dakb5ar-411517047331.asia-southeast1.run.app",
+    "ais-pre-af25rey5a3wy6l7dakb5ar-411517047331.asia-southeast1.run.app",
+  ],
   async headers() {
     return [
       {

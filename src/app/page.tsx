@@ -11,9 +11,10 @@ import RelatedPanel from "../components/RelatedPanel";
 import Visualizer from "../components/Visualizer";
 import { 
   LogIn, LogOut, Search, ListMusic, FileText, 
-  MessageSquare, Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
-  Loader2
+  Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
+  Loader2, ExternalLink, Trash2, Check
 } from "lucide-react";
+import { clearAllLyricsCache } from "../utils/lyricsCache";
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -32,10 +33,30 @@ export default function Home() {
   // Local state to track join voice API loading
   const [isJoining, setIsJoining] = useState(false);
 
+  // Local state for cleared lyrics cache feedback
+  const [clearedCacheCount, setClearedCacheCount] = useState<number | null>(null);
+
+  // Detect iframe embedding
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsInIframe(window.self !== window.top && !isActivity);
+    }
+  }, [isActivity]);
+
   const handleJoinVoice = async () => {
     setIsJoining(true);
     await joinVoice();
     setIsJoining(false);
+  };
+
+  const handleClearLyricsCache = () => {
+    const { clearedCount } = clearAllLyricsCache();
+    setClearedCacheCount(clearedCount);
+    setTimeout(() => {
+      setClearedCacheCount(null);
+    }, 2400);
   };
 
   // Intercept the Discord auth callback hash de-opt redirect (/#/login-success)
@@ -124,7 +145,7 @@ export default function Home() {
             A premium, glassmorphism web console dashboard. Stream synced statistics, manage active play queues, view lyrics, and support OS media buttons with active silent audio loop integration.
           </p>
 
-          <div className={styles.actionBlock}>
+          <div className={styles.actionBlock} style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
             <button 
               type="button"
               onClick={login} 
@@ -134,6 +155,18 @@ export default function Home() {
               <LogIn style={{ width: "20px", height: "20px" }} />
               {isActivity ? "Authorize Activity" : "Connect with Discord"}
             </button>
+            {isInIframe && (
+              <button
+                type="button"
+                onClick={() => window.open(window.location.href, "_blank")}
+                className="glass-btn"
+                style={{ padding: "14px 24px", fontSize: "0.95rem", borderRadius: "30px" }}
+                title="Open app in full window"
+              >
+                <ExternalLink style={{ width: "18px", height: "18px" }} />
+                Open in Full Window
+              </button>
+            )}
           </div>
 
           {/* Quick Mock Card Preview */}
@@ -193,6 +226,23 @@ export default function Home() {
 
           {/* Diagnostics WS Connection badges */}
           <div className={styles.headerControls}>
+            <button 
+              type="button"
+              onClick={handleClearLyricsCache} 
+              className={`glass-btn ${styles.clearCacheBtn} ${clearedCacheCount !== null ? styles.clearCacheBtnSuccess : ""}`}
+              title="Clear cached song lyrics and Romaji translations from local storage"
+              aria-label="Clear Lyrics Cache"
+            >
+              {clearedCacheCount !== null ? (
+                <Check className={styles.clearCacheIcon} />
+              ) : (
+                <Trash2 className={styles.clearCacheIcon} />
+              )}
+              <span className={styles.clearCacheText}>
+                {clearedCacheCount !== null ? "Cache Cleared" : "Clear Lyrics Cache"}
+              </span>
+            </button>
+
             <div 
               className={`${styles.connectionBadge} ${isConnected && isWSAuthenticated ? styles.connected : styles.disconnected}`}
               onClick={isConnected ? undefined : getVoiceConnection}
