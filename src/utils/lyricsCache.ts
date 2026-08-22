@@ -1,11 +1,18 @@
 // Utility for managing cached lyrics and romanization data in localStorage
 
+export type RomajiSource = "Built-in" | "kuroshiro" | "Gemini AI";
+
+export interface StoredRomanizationData {
+  lines: string[];
+  source: RomajiSource;
+}
+
 const LYRICS_CACHE_PREFIX = "garret_lyrics_";
 const ROMAJI_CACHE_PREFIX = "garret_romaji_";
 
 // In-memory fallback
 const memoryLyricsCache = new Map<string, string>();
-const memoryRomajiCache = new Map<string, string[]>();
+const memoryRomajiCache = new Map<string, StoredRomanizationData>();
 
 export function getLyricsCacheKey(title: string, artist?: string): string {
   const cleanTitle = (title || "").trim().toLowerCase();
@@ -41,7 +48,7 @@ export function saveStoredLyrics(key: string, content: string): void {
   }
 }
 
-export function getStoredRomanization(key: string): string[] | null {
+export function getStoredRomanization(key: string): StoredRomanizationData | null {
   if (memoryRomajiCache.has(key)) {
     return memoryRomajiCache.get(key)!;
   }
@@ -51,8 +58,17 @@ export function getStoredRomanization(key: string): string[] | null {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        memoryRomajiCache.set(key, parsed);
-        return parsed;
+        const data: StoredRomanizationData = { lines: parsed, source: "kuroshiro" };
+        memoryRomajiCache.set(key, data);
+        return data;
+      }
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.lines)) {
+        const data: StoredRomanizationData = {
+          lines: parsed.lines,
+          source: (parsed.source as RomajiSource) || "kuroshiro",
+        };
+        memoryRomajiCache.set(key, data);
+        return data;
       }
     }
   } catch (e) {
@@ -61,12 +77,17 @@ export function getStoredRomanization(key: string): string[] | null {
   return null;
 }
 
-export function saveStoredRomanization(key: string, lines: string[]): void {
+export function saveStoredRomanization(
+  key: string,
+  lines: string[],
+  source: RomajiSource = "kuroshiro"
+): void {
   if (!key || !lines || lines.length === 0) return;
-  memoryRomajiCache.set(key, lines);
+  const payload: StoredRomanizationData = { lines, source };
+  memoryRomajiCache.set(key, payload);
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(`${ROMAJI_CACHE_PREFIX}${key}`, JSON.stringify(lines));
+    localStorage.setItem(`${ROMAJI_CACHE_PREFIX}${key}`, JSON.stringify(payload));
   } catch (e) {
     console.warn("[LyricsCache] Romaji write error:", e);
   }
@@ -103,3 +124,4 @@ export function clearAllLyricsCache(): { clearedCount: number } {
 
   return { clearedCount };
 }
+

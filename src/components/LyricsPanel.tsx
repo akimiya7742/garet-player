@@ -5,8 +5,20 @@ import { Music, FileText, Loader2, RefreshCw, Languages, Sparkles } from "lucide
 import { useAuth } from "../contexts/AuthContext";
 import { useMusicWS } from "../contexts/MusicWSContext";
 import { getApiUrl } from "../utils/apiUrl";
-import { hasJapaneseInLines, hasJapanese, romanizeLyricsLines } from "../utils/japanese";
-import { getLyricsCacheKey, getStoredLyrics, saveStoredLyrics } from "../utils/lyricsCache";
+import {
+  hasJapaneseInLines,
+  hasJapanese,
+  romanizeLyricsLines,
+  parseRomanizationFromPayload,
+} from "../utils/japanese";
+import {
+  getLyricsCacheKey,
+  getStoredLyrics,
+  saveStoredLyrics,
+  getStoredRomanization,
+  saveStoredRomanization,
+  RomajiSource,
+} from "../utils/lyricsCache";
 import styles from "./LyricsPanel.module.css";
 
 interface SyncedLine {
@@ -17,7 +29,7 @@ interface SyncedLine {
 // Parse an LRC string into timed lines.
 // Handles: [mm:ss.xx], [mm:ss.xxx], [mm:ss] — ignores metadata tags like [ti:…]
 function parseLRC(raw: string): { lines: SyncedLine[]; isSynced: boolean } {
-  const lrcRegex = /^\[(\d{1,3}):(\d{2})(?:[.:](\d+))?\](.*)/;
+  const lrcRegex = /^\[\s*(\d{1,3})\s*:\s*(\d{2})(?:\s*[.:]\s*(\d+))?\s*\]\s*(.*)/;
   const lines: SyncedLine[] = [];
   let isSynced = false;
 
@@ -92,7 +104,7 @@ export const LyricsPanel: React.FC = () => {
   const isPaused    = statistics?.paused ?? true;
   const hasTrack    = !!statistics?.track;
 
-  // FIX #1: stable boolean so the ticking interval isn't rebuilt every WS heartbeat
+  // Stable boolean so the ticking interval isn't rebuilt every WS heartbeat
   const isPlaying = hasTrack && !isPaused;
 
   // Use a ref so the interval closure can read the latest value without re-creating
@@ -112,13 +124,12 @@ export const LyricsPanel: React.FC = () => {
   // Japanese Romanization States
   const [romajiMode, setRomajiMode]       = useState<"both" | "romaji" | "off">("both");
   const [romanizedLines, setRomanizedLines] = useState<string[]>([]);
+  const [romajiSource, setRomajiSource]   = useState<RomajiSource | null>(null);
   const [isRomanizing, setIsRomanizing]   = useState(false);
 
   // Detect if current lyrics contain Japanese (Hiragana, Katakana, Kanji)
   const isJapaneseLyrics = hasJapanese(lyrics) || hasJapaneseInLines(syncedLines);
 
-  // FIX #2: store local playback time in a ref and only use setState for active-line changes
-  // This avoids the "sync override kills ticking" problem entirely.
   const localTimeRef   = useRef<number>(statistics?.timestamp ?? 0);
   const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -131,10 +142,21 @@ export const LyricsPanel: React.FC = () => {
 
   const activeLyricsKeyRef = useRef<string>("");
 
-  // ── Auto-Romanize when Japanese lyrics are parsed ─────────────────────────
+  // ── Auto-Romanize when Japanese lyrics are parsed (Built-in -> kuroshiro -> Gemini AI) ────
   useEffect(() => {
     if (!lyrics || syncedLines.length === 0 || !isJapaneseLyrics) {
       setRomanizedLines([]);
+      setRomajiSource(null);
+      setIsRomanizing(false);
+      return;
+    }
+
+    // If romanized lines are already set and match synced lines count with an active source, preserve them
+    if (
+      romanizedLines.length === syncedLines.length &&
+      romajiSource !== null &&
+      romanizedLines.some((l) => l.trim() !== "")
+    ) {
       setIsRomanizing(false);
       return;
     }
@@ -148,9 +170,15 @@ export const LyricsPanel: React.FC = () => {
 
     romanizeLyricsLines(rawLines, cacheKey)
       .then((res) => {
-        if (activeLyricsKeyRef.current === lyricsKey && Array.isArray(res) && res.length > 0) {
-          console.log("[Lyrics] Setting romanized lines count:", res.length);
-          setRomanizedLines(res);
+        if (
+          activeLyricsKeyRef.current === lyricsKey &&
+          res &&
+          Array.isArray(res.lines) &&
+          res.lines.length > 0
+        ) {
+          console.log("[Lyrics] Romanization applied. Lines:", res.lines.length, "Source:", res.source);
+          setRomanizedLines(res.lines);
+          setRomajiSource(res.source);
         }
       })
       .catch((err) => {
@@ -161,7 +189,7 @@ export const LyricsPanel: React.FC = () => {
           setIsRomanizing(false);
         }
       });
-  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle]);
+  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle, romanizedLines, romajiSource]);
 
   // ── Fetch lyrics ──────────────────────────────────────────────────────────
   const fetchLyrics = useCallback(async (queryText: string, bypassCache = false) => {
@@ -172,9 +200,14 @@ export const LyricsPanel: React.FC = () => {
     // Check local storage cache first unless forced bypass
     if (!bypassCache) {
       const cached = getStoredLyrics(cacheKey);
+      const cachedRomaji = getStoredRomanization(cacheKey);
       if (cached) {
         console.log("[Lyrics] Loaded lyrics from cache for:", queryText);
         setLyrics(cached);
+        if (cachedRomaji && Array.isArray(cachedRomaji.lines) && cachedRomaji.lines.length > 0) {
+          setRomanizedLines(cachedRomaji.lines);
+          setRomajiSource(cachedRomaji.source || "kuroshiro");
+        }
         setError(null);
         setLoading(false);
         return;
@@ -185,6 +218,8 @@ export const LyricsPanel: React.FC = () => {
     setError(null);
     setLyrics("");
     setSyncedLines([]);
+    setRomanizedLines([]);
+    setRomajiSource(null);
     setCurrentLineIndex(-1);
 
     try {
@@ -201,13 +236,30 @@ export const LyricsPanel: React.FC = () => {
         const data = await res.json();
         console.log("[Lyrics] API response:", data);
 
-        // FIX #3: check all known API response keys, prefer synced LRC
         const { content, preferSynced } = extractLyrics(data);
 
         if (content) {
           console.log("[Lyrics] Content found, preferSynced:", preferSynced);
           setLyrics(content);
           saveStoredLyrics(cacheKey, content);
+
+          // 1. Primary: Check if built-in romanization exists in API response
+          const rawRomanization =
+            (typeof data.lyrics_romanization === "string" && data.lyrics_romanization) ||
+            (typeof data.romanized_lyrics === "string" && data.romanized_lyrics) ||
+            (typeof data.romanizedLyrics === "string" && data.romanizedLyrics) ||
+            "";
+
+          if (rawRomanization) {
+            const { lines: parsedLines } = parseLRC(content);
+            const builtInRomaji = parseRomanizationFromPayload(rawRomanization, parsedLines);
+            if (builtInRomaji && builtInRomaji.length > 0) {
+              console.log("[Lyrics] Found & applied Built-in romanization from API");
+              setRomanizedLines(builtInRomaji);
+              setRomajiSource("Built-in");
+              saveStoredRomanization(cacheKey, builtInRomaji, "Built-in");
+            }
+          }
         } else {
           setError("No lyrics found for this track.");
         }
@@ -252,6 +304,8 @@ export const LyricsPanel: React.FC = () => {
       setLyrics("");
       setError(null);
       setSyncedLines([]);
+      setRomanizedLines([]);
+      setRomajiSource(null);
       setCurrentLineIndex(-1);
     }
   }, [trackUrl, trackTitle]); // intentionally omit fetchLyrics to not re-trigger on token refresh
@@ -271,7 +325,6 @@ export const LyricsPanel: React.FC = () => {
   }, [lyrics]);
 
   // ── Snap localTime to WS timestamp on each heartbeat ────────────────────
-  // FIX #2: Update only the ref, not state — no re-render storm
   useEffect(() => {
     const wsTs = statistics?.timestamp ?? 0;
     wsTimestampRef.current = wsTs;
@@ -279,7 +332,6 @@ export const LyricsPanel: React.FC = () => {
   }, [statistics?.timestamp]);
 
   // ── Single long-lived interval that ticks localTime every 100ms ──────────
-  // FIX #1: created ONCE on mount, reads isPlaying from ref to avoid restarts
   useEffect(() => {
     const TICK = 100;
     intervalRef.current = setInterval(() => {
@@ -358,34 +410,54 @@ export const LyricsPanel: React.FC = () => {
 
       {isJapaneseLyrics && lyrics && syncedLines.length > 0 && (
         <div className={styles.romajiControls}>
-          <span className={styles.romajiLabel}>
-            <Sparkles style={{ width: 12, height: 12, color: "var(--accent-secondary)" }} />
-            Romaji Mode:
-          </span>
-          <button
-            type="button"
-            className={`${styles.romajiModeBtn} ${romajiMode === "both" ? styles.romajiModeBtnActive : ""}`}
-            onClick={() => setRomajiMode("both")}
-            title="Show Japanese Kanji/Kana with Romaji subtext"
-          >
-            JP + Romaji
-          </button>
-          <button
-            type="button"
-            className={`${styles.romajiModeBtn} ${romajiMode === "romaji" ? styles.romajiModeBtnActive : ""}`}
-            onClick={() => setRomajiMode("romaji")}
-            title="Show Romaji only"
-          >
-            Romaji Only
-          </button>
-          <button
-            type="button"
-            className={`${styles.romajiModeBtn} ${romajiMode === "off" ? styles.romajiModeBtnActive : ""}`}
-            onClick={() => setRomajiMode("off")}
-            title="Show original Japanese text only"
-          >
-            Original
-          </button>
+          <div className={styles.romajiControlsLeft}>
+            <span className={styles.romajiLabel}>
+              <Sparkles style={{ width: 12, height: 12, color: "var(--accent-secondary)" }} />
+              Romaji Mode:
+            </span>
+            <button
+              type="button"
+              className={`${styles.romajiModeBtn} ${romajiMode === "both" ? styles.romajiModeBtnActive : ""}`}
+              onClick={() => setRomajiMode("both")}
+              title="Show Japanese Kanji/Kana with Romaji subtext"
+            >
+              JP + Romaji
+            </button>
+            <button
+              type="button"
+              className={`${styles.romajiModeBtn} ${romajiMode === "romaji" ? styles.romajiModeBtnActive : ""}`}
+              onClick={() => setRomajiMode("romaji")}
+              title="Show Romaji only"
+            >
+              Romaji Only
+            </button>
+            <button
+              type="button"
+              className={`${styles.romajiModeBtn} ${romajiMode === "off" ? styles.romajiModeBtnActive : ""}`}
+              onClick={() => setRomajiMode("off")}
+              title="Show original Japanese text only"
+            >
+              Original
+            </button>
+          </div>
+
+          {romajiMode !== "off" && (
+            <div className={styles.romajiControlsRight}>
+              {isRomanizing ? (
+                <span className={styles.romajiStatus}>
+                  <Loader2 className={styles.romajiSpinner} />
+                  Romanizing...
+                </span>
+              ) : romajiSource ? (
+                <span
+                  className={styles.romajiSourceBadge}
+                  title={`Romanization source: ${romajiSource}`}
+                >
+                  Source: <strong className={styles.romajiSourceValue}>{romajiSource}</strong>
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
       )}
 
@@ -497,3 +569,4 @@ export const LyricsPanel: React.FC = () => {
 };
 
 export default LyricsPanel;
+

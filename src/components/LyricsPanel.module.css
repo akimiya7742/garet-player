@@ -67,15 +67,64 @@
 
 .romajiControls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 12px;
-  padding: 6px;
+  padding: 6px 10px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--glass-border);
   border-radius: var(--border-radius-sm);
 }
+
+.romajiControlsLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.romajiControlsRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.romajiSourceBadge {
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.romajiSourceValue {
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+.romajiStatus {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.romajiSpinner {
+  width: 11px;
+  height: 11px;
+  color: var(--accent-secondary);
+  animation: spin 1s linear infinite;
+}
+
 
 .romajiLabel {
   font-size: 0.72rem;
