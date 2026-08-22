@@ -176,6 +176,17 @@ export const LyricsPanel: React.FC = () => {
           Array.isArray(res.lines) &&
           res.lines.length > 0
         ) {
+          // If a built-in romanization was applied while the async romanizer was running,
+          // do NOT override it — built-in should take precedence over client-side conversions.
+          if (
+            romajiSource === "Built-in" &&
+            romanizedLines.length === syncedLines.length &&
+            romanizedLines.some((l) => l.trim() !== "")
+          ) {
+            console.log("[Lyrics] Built-in romanization present — skipping override from auto-romanizer");
+            return;
+          }
+
           console.log("[Lyrics] Romanization applied. Lines:", res.lines.length, "Source:", res.source);
           setRomanizedLines(res.lines);
           setRomajiSource(res.source);
@@ -191,7 +202,7 @@ export const LyricsPanel: React.FC = () => {
       });
   }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle, romanizedLines, romajiSource]);
 
-  // ── Fetch lyrics ──────────────────────────────────────────────────────────
+  // ── Fetch lyrics ────────────────────────────────────────────────────────��[...]
   const fetchLyrics = useCallback(async (queryText: string, bypassCache = false) => {
     if (!queryText.trim() || !token) return;
 
@@ -569,4 +580,3 @@ export const LyricsPanel: React.FC = () => {
 };
 
 export default LyricsPanel;
-
