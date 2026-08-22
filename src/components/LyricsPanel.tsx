@@ -129,6 +129,8 @@ export const LyricsPanel: React.FC = () => {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
 
+  const activeLyricsKeyRef = useRef<string>("");
+
   // ── Auto-Romanize when Japanese lyrics are parsed ─────────────────────────
   useEffect(() => {
     if (!lyrics || syncedLines.length === 0 || !isJapaneseLyrics) {
@@ -137,29 +139,28 @@ export const LyricsPanel: React.FC = () => {
       return;
     }
 
-    let isCancelled = false;
-    setIsRomanizing(true);
-
     const rawLines = syncedLines.map((l) => l.text);
+    const lyricsKey = `${trackTitle || "track"}_${rawLines.length}_${lyrics.slice(0, 30)}`;
+    activeLyricsKeyRef.current = lyricsKey;
+
+    setIsRomanizing(true);
     const cacheKey = `${trackTitle || "lyrics"}_${rawLines.length}_${rawLines.slice(0, 3).join("_")}`;
 
     romanizeLyricsLines(rawLines, cacheKey)
       .then((res) => {
-        if (!isCancelled) {
+        if (activeLyricsKeyRef.current === lyricsKey && Array.isArray(res) && res.length > 0) {
+          console.log("[Lyrics] Setting romanized lines count:", res.length);
           setRomanizedLines(res);
-          setIsRomanizing(false);
         }
       })
       .catch((err) => {
         console.error("[Lyrics] Romanization error:", err);
-        if (!isCancelled) {
+      })
+      .finally(() => {
+        if (activeLyricsKeyRef.current === lyricsKey) {
           setIsRomanizing(false);
         }
       });
-
-    return () => {
-      isCancelled = true;
-    };
   }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle]);
 
   // ── Fetch lyrics ──────────────────────────────────────────────────────────
@@ -433,13 +434,11 @@ export const LyricsPanel: React.FC = () => {
             {syncedLines.map((line, idx) => {
               const isActive = idx === currentLineIndex;
               const isPast   = isSynced && idx < currentLineIndex;
-              const romajiLine = romanizedLines[idx] || "";
+              const romajiLine = (romanizedLines[idx] || "").trim();
               const hasRomaji =
                 isJapaneseLyrics &&
-                romajiLine &&
-                romajiLine.trim() !== "" &&
-                romajiLine !== line.text &&
-                !hasJapanese(romajiLine);
+                romajiLine !== "" &&
+                romajiLine.toLowerCase() !== line.text.trim().toLowerCase();
 
               let mainText = line.text;
               let subText: string | null = null;

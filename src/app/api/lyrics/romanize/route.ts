@@ -138,15 +138,15 @@ ${JSON.stringify(lines, null, 2)}`;
       }
     }
 
-    // Post-process / Fallback step:
-    // If romanizedLines is empty OR any line still contains un-romanized Japanese characters,
-    // convert those lines using the Kuroshiro morphological engine.
+    // Post-process / Library Fallback:
+    // If Gemini was unavailable, timed out, rate limited, or any line still contains
+    // lingering Japanese characters, convert those lines using the Kuroshiro morphological engine.
     const finalLines: string[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       let candidate = romanizedLines[i];
 
-      // If no candidate from Gemini or candidate still has Japanese characters (Kanji/Kana)
+      // If no candidate from Gemini or candidate still has un-romanized Japanese characters (Kanji/Kana)
       if (!candidate || JAPANESE_CHAR_REGEX.test(candidate)) {
         if (JAPANESE_CHAR_REGEX.test(line)) {
           candidate = await convertWithKuroshiro(line);
@@ -159,9 +159,26 @@ ${JSON.stringify(lines, null, 2)}`;
 
     return NextResponse.json({
       romanizedLines: finalLines,
+      source: apiKey && romanizedLines.length === lines.length ? "gemini+kuroshiro" : "kuroshiro-library",
     });
   } catch (error: any) {
-    console.error("[Romanize API] Error during romanization:", error);
+    console.warn("[Romanize API] Top-level error, attempting emergency full Kuroshiro conversion:", error);
+    try {
+      const { lines } = await req.json();
+      if (Array.isArray(lines)) {
+        const emergencyLines: string[] = [];
+        for (const line of lines) {
+          emergencyLines.push(await convertWithKuroshiro(line));
+        }
+        return NextResponse.json({
+          romanizedLines: emergencyLines,
+          source: "kuroshiro-emergency",
+        });
+      }
+    } catch {
+      // ignore secondary error
+    }
+
     return NextResponse.json(
       { error: error?.message || "Failed to romanize lyrics", fallback: true },
       { status: 500 }

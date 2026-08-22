@@ -20,7 +20,7 @@ export function hasJapaneseInLines(lines: { text: string }[]): boolean {
 }
 
 /**
- * Verifies that all lines in the array are fully romanized (contain 0 Japanese Kanji/Kana characters)
+ * Verifies that an array of lines has substantial romanization
  */
 export function isFullyRomanized(lines: string[]): boolean {
   if (!Array.isArray(lines) || lines.length === 0) return false;
@@ -32,6 +32,18 @@ export function isFullyRomanized(lines: string[]): boolean {
  */
 export function quickRomanize(text: string): string {
   if (!text || !text.trim()) return text;
+  try {
+    return wanakana.toRomaji(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * Sanitizes a romanized line, ensuring leftover kana is converted
+ */
+export function sanitizeRomajiLine(text: string): string {
+  if (!text) return "";
   try {
     return wanakana.toRomaji(text);
   } catch {
@@ -59,30 +71,20 @@ export async function romanizeLyricsLines(
 
   const key = cacheKey || lines.slice(0, 10).join("|");
 
-  // 1. Check in-memory cache (ensure it is fully romanized)
+  // 1. Check in-memory cache
   if (romanizationCache.has(key)) {
     const cached = romanizationCache.get(key)!;
-    if (isFullyRomanized(cached)) {
+    if (cached.length === lines.length) {
       return cached;
     }
     romanizationCache.delete(key);
   }
 
-  // 2. Check localStorage cache (ensure it is clean with 0 Japanese characters)
+  // 2. Check localStorage cache
   const stored = getStoredRomanization(key);
   if (stored && stored.length === lines.length) {
-    if (isFullyRomanized(stored)) {
-      romanizationCache.set(key, stored);
-      return stored;
-    }
-    // Corrupted previous cache entry containing raw Kanji -> purge it
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem(`garret_romaji_${key}`);
-      } catch (e) {
-        console.warn("[Lyrics] Failed to purge dirty romaji cache:", e);
-      }
-    }
+    romanizationCache.set(key, stored);
+    return stored;
   }
 
   try {
@@ -94,21 +96,29 @@ export async function romanizeLyricsLines(
 
     if (res.ok) {
       const data = await res.json();
-      if (
-        Array.isArray(data.romanizedLines) &&
-        data.romanizedLines.length === lines.length &&
-        isFullyRomanized(data.romanizedLines)
-      ) {
-        romanizationCache.set(key, data.romanizedLines);
-        saveStoredRomanization(key, data.romanizedLines);
-        return data.romanizedLines;
+      if (Array.isArray(data.romanizedLines) && data.romanizedLines.length > 0) {
+        // Guarantee exact 1-to-1 match with input lines length
+        const sanitized: string[] = lines.map((originalLine, idx) => {
+          const apiLine = data.romanizedLines[idx];
+          if (typeof apiLine === "string" && apiLine.trim()) {
+            return sanitizeRomajiLine(apiLine);
+          }
+          return quickRomanize(originalLine);
+        });
+
+        romanizationCache.set(key, sanitized);
+        saveStoredRomanization(key, sanitized);
+        return sanitized;
       }
     }
   } catch (err) {
     console.warn("[Japanese Romanization] API request failed:", err);
   }
 
-  return [];
+  // Fallback if API totally unreachable
+  const fallback = lines.map((l) => quickRomanize(l));
+  romanizationCache.set(key, fallback);
+  return fallback;
 }
 
 
