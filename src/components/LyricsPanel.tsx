@@ -22,12 +22,10 @@ import {
 import styles from "./LyricsPanel.module.css";
 
 interface SyncedLine {
-  time: number; // milliseconds; -1 = unsynced plain text
+  time: number;
   text: string;
 }
 
-// Parse an LRC string into timed lines.
-// Handles: [mm:ss.xx], [mm:ss.xxx], [mm:ss] — ignores metadata tags like [ti:…]
 function parseLRC(raw: string): { lines: SyncedLine[]; isSynced: boolean } {
   const lrcRegex = /^\[\s*(\d{1,3})\s*:\s*(\d{2})(?:\s*[.:]\s*(\d+))?\s*\]\s*(.*)/;
   const lines: SyncedLine[] = [];
@@ -41,11 +39,10 @@ function parseLRC(raw: string): { lines: SyncedLine[]; isSynced: boolean } {
     if (match) {
       const mins = parseInt(match[1], 10);
       const secs = parseInt(match[2], 10);
-      // Normalize sub-second part to ms (could be 2 or 3 digits)
       const sub = match[3] ?? "0";
       const ms = sub.length <= 2
-        ? parseInt(sub, 10) * 10   // centiseconds → ms
-        : parseInt(sub.substring(0, 3), 10); // already ms
+        ? parseInt(sub, 10) * 10
+        : parseInt(sub.substring(0, 3), 10);
       const timeInMs = (mins * 60 + secs) * 1000 + ms;
       const text = match[4].trim();
       lines.push({ time: timeInMs, text });
@@ -56,7 +53,6 @@ function parseLRC(raw: string): { lines: SyncedLine[]; isSynced: boolean } {
   }
 
   if (isSynced) {
-    // Keep only timed lines (drop plain-text lines mixed in) and sort ascending
     return {
       lines: lines.filter((l) => l.time >= 0).sort((a, b) => a.time - b.time),
       isSynced: true,
@@ -65,16 +61,14 @@ function parseLRC(raw: string): { lines: SyncedLine[]; isSynced: boolean } {
   return { lines, isSynced: false };
 }
 
-// Extract the most useful lyrics string from any API response shape
 function extractLyrics(data: unknown): { content: string; preferSynced: boolean } {
   if (typeof data === "string") return { content: data, preferSynced: false };
   if (!data || typeof data !== "object") return { content: "", preferSynced: false };
 
   const d = data as Record<string, unknown>;
 
-  // LRCLIB / common synced key — prefer these first
   const synced =
-    (typeof d.synced === "string" && d.synced) ||         // LRCLIB: { synced: "[00:08.11] ..." }
+    (typeof d.synced === "string" && d.synced) ||
     (typeof d.syncedLyrics === "string" && d.syncedLyrics) ||
     (typeof d.lrc === "string" && d.lrc) ||
     (typeof d.subtitles === "string" && d.subtitles) ||
@@ -82,7 +76,6 @@ function extractLyrics(data: unknown): { content: string; preferSynced: boolean 
 
   if (synced.trim()) return { content: synced.trim(), preferSynced: true };
 
-  // Plain-text fallbacks
   const plain =
     (typeof d.lyrics === "string" && d.lyrics) ||
     (typeof d.text === "string" && d.text) ||
@@ -98,16 +91,13 @@ export const LyricsPanel: React.FC = () => {
   const { token } = useAuth();
   const { statistics } = useMusicWS();
 
-  // Derive stable primitives — avoids object-reference churn from WS updates
   const trackUrl    = statistics?.track?.url ?? null;
   const trackTitle  = statistics?.track?.title ?? null;
   const isPaused    = statistics?.paused ?? true;
   const hasTrack    = !!statistics?.track;
 
-  // Stable boolean so the ticking interval isn't rebuilt every WS heartbeat
   const isPlaying = hasTrack && !isPaused;
 
-  // Use a ref so the interval closure can read the latest value without re-creating
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
@@ -121,13 +111,14 @@ export const LyricsPanel: React.FC = () => {
   const [isSynced, setIsSynced]           = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
 
-  // Japanese Romanization States
   const [romajiMode, setRomajiMode]       = useState<"both" | "romaji" | "off">("both");
   const [romanizedLines, setRomanizedLines] = useState<string[]>([]);
   const [romajiSource, setRomajiSource]   = useState<RomajiSource | null>(null);
   const [isRomanizing, setIsRomanizing]   = useState(false);
 
-  // Detect if current lyrics contain Japanese (Hiragana, Katakana, Kanji)
+  // Ref đánh dấu khi đã áp dụng thành công Built-in Romanization
+  const hasBuiltInRef = useRef<boolean>(false);
+
   const isJapaneseLyrics = hasJapanese(lyrics) || hasJapaneseInLines(syncedLines);
 
   const localTimeRef   = useRef<number>(statistics?.timestamp ?? 0);
@@ -139,23 +130,25 @@ export const LyricsPanel: React.FC = () => {
   syncedLinesRef.current = syncedLines;
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
-
   const activeLyricsKeyRef = useRef<string>("");
 
-  // ── Auto-Romanize when Japanese lyrics are parsed (Built-in -> kuroshiro -> Gemini AI) ────
+  // ── Auto-Romanize Fallback (Kuroshiro -> Gemini AI) ──────────────────────────
   useEffect(() => {
     if (!lyrics || syncedLines.length === 0 || !isJapaneseLyrics) {
       setRomanizedLines([]);
       setRomajiSource(null);
       setIsRomanizing(false);
+      hasBuiltInRef.current = false;
       return;
     }
 
-    // If romanized lines are already set and match synced lines count with an active source, preserve them
+    // BỎ QUA NẾU: Đã có Built-in Romanization hoặc đã có kết quả romaji trước đó
     if (
-      romanizedLines.length === syncedLines.length &&
-      romajiSource !== null &&
-      romanizedLines.some((l) => l.trim() !== "")
+      hasBuiltInRef.current ||
+      romajiSource === "Built-in" ||
+      (romanizedLines.length === syncedLines.length &&
+        romajiSource !== null &&
+        romanizedLines.some((l) => l.trim() !== ""))
     ) {
       setIsRomanizing(false);
       return;
@@ -170,24 +163,15 @@ export const LyricsPanel: React.FC = () => {
 
     romanizeLyricsLines(rawLines, cacheKey)
       .then((res) => {
+        // Kiểm tra lại lần nữa để tránh race condition nếu Built-in được load trong lúc gọi API fallback
         if (
+          !hasBuiltInRef.current &&
           activeLyricsKeyRef.current === lyricsKey &&
           res &&
           Array.isArray(res.lines) &&
           res.lines.length > 0
         ) {
-          // If a built-in romanization was applied while the async romanizer was running,
-          // do NOT override it — built-in should take precedence over client-side conversions.
-          if (
-            romajiSource === "Built-in" &&
-            romanizedLines.length === syncedLines.length &&
-            romanizedLines.some((l) => l.trim() !== "")
-          ) {
-            console.log("[Lyrics] Built-in romanization present — skipping override from auto-romanizer");
-            return;
-          }
-
-          console.log("[Lyrics] Romanization applied. Lines:", res.lines.length, "Source:", res.source);
+          console.log("[Lyrics] Fallback Romanization applied. Lines:", res.lines.length, "Source:", res.source);
           setRomanizedLines(res.lines);
           setRomajiSource(res.source);
         }
@@ -200,15 +184,17 @@ export const LyricsPanel: React.FC = () => {
           setIsRomanizing(false);
         }
       });
-  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle, romanizedLines, romajiSource]);
+  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle]); // ĐÃ XÓA romanizedLines và romajiSource khỏi Deps để tránh loop/override
 
-  // ── Fetch lyrics ────────────────────────────────────────────────────────��[...]
+  // ── Fetch lyrics ──────────────────────────────────────────────────────────
   const fetchLyrics = useCallback(async (queryText: string, bypassCache = false) => {
     if (!queryText.trim() || !token) return;
 
     const cacheKey = getLyricsCacheKey(queryText);
 
-    // Check local storage cache first unless forced bypass
+    // Reset flag trước khi fetch mới
+    hasBuiltInRef.current = false;
+
     if (!bypassCache) {
       const cached = getStoredLyrics(cacheKey);
       const cachedRomaji = getStoredRomanization(cacheKey);
@@ -217,7 +203,11 @@ export const LyricsPanel: React.FC = () => {
         setLyrics(cached);
         if (cachedRomaji && Array.isArray(cachedRomaji.lines) && cachedRomaji.lines.length > 0) {
           setRomanizedLines(cachedRomaji.lines);
-          setRomajiSource(cachedRomaji.source || "kuroshiro");
+          const source = cachedRomaji.source || "kuroshiro";
+          setRomajiSource(source);
+          if (source === "Built-in") {
+            hasBuiltInRef.current = true;
+          }
         }
         setError(null);
         setLoading(false);
@@ -247,12 +237,14 @@ export const LyricsPanel: React.FC = () => {
         const data = await res.json();
         console.log("[Lyrics] API response:", data);
 
-        const { content, preferSynced } = extractLyrics(data);
+        const { content } = extractLyrics(data);
 
         if (content) {
-          console.log("[Lyrics] Content found, preferSynced:", preferSynced);
           setLyrics(content);
           saveStoredLyrics(cacheKey, content);
+
+          // Parse ngay các dòng LRC
+          const { lines: parsedLines } = parseLRC(content);
 
           // 1. Primary: Check if built-in romanization exists in API response
           const rawRomanization =
@@ -262,10 +254,12 @@ export const LyricsPanel: React.FC = () => {
             "";
 
           if (rawRomanization) {
-            const { lines: parsedLines } = parseLRC(content);
             const builtInRomaji = parseRomanizationFromPayload(rawRomanization, parsedLines);
             if (builtInRomaji && builtInRomaji.length > 0) {
               console.log("[Lyrics] Found & applied Built-in romanization from API");
+              
+              // Đánh dấu đã có Built-in trước khi cập nhật State
+              hasBuiltInRef.current = true;
               setRomanizedLines(builtInRomaji);
               setRomajiSource("Built-in");
               saveStoredRomanization(cacheKey, builtInRomaji, "Built-in");
@@ -285,11 +279,9 @@ export const LyricsPanel: React.FC = () => {
     }
   }, [backendUrl, token]);
 
-  // Listen for cache clear event
   useEffect(() => {
     const handleCacheCleared = () => {
       console.log("[Lyrics] Cache cleared notification received.");
-      // Refresh current track if loaded
       if (trackTitle) {
         fetchLyrics(trackTitle, true);
       }
@@ -298,7 +290,6 @@ export const LyricsPanel: React.FC = () => {
     return () => window.removeEventListener("lyrics-cache-cleared", handleCacheCleared);
   }, [trackTitle, fetchLyrics]);
 
-  // ── Auto-fetch once when the track changes ───────────────────────────────
   useEffect(() => {
     if (trackTitle && trackUrl) {
       setSearchQuery(trackTitle);
@@ -318,10 +309,10 @@ export const LyricsPanel: React.FC = () => {
       setRomanizedLines([]);
       setRomajiSource(null);
       setCurrentLineIndex(-1);
+      hasBuiltInRef.current = false;
     }
-  }, [trackUrl, trackTitle]); // intentionally omit fetchLyrics to not re-trigger on token refresh
+  }, [trackUrl, trackTitle]);
 
-  // ── Parse LRC whenever lyrics text changes ───────────────────────────────
   useEffect(() => {
     if (!lyrics) {
       setSyncedLines([]);
@@ -329,27 +320,23 @@ export const LyricsPanel: React.FC = () => {
       return;
     }
     const { lines, isSynced: synced } = parseLRC(lyrics);
-    console.log("[Lyrics] Parsed lines:", lines.length, "isSynced:", synced);
     setSyncedLines(lines);
     setIsSynced(synced);
     setCurrentLineIndex(-1);
   }, [lyrics]);
 
-  // ── Snap localTime to WS timestamp on each heartbeat ────────────────────
   useEffect(() => {
     const wsTs = statistics?.timestamp ?? 0;
     wsTimestampRef.current = wsTs;
     localTimeRef.current = wsTs;
   }, [statistics?.timestamp]);
 
-  // ── Single long-lived interval that ticks localTime every 100ms ──────────
   useEffect(() => {
     const TICK = 100;
     intervalRef.current = setInterval(() => {
-      if (!isPlayingRef.current) return; // paused — don't advance
+      if (!isPlayingRef.current) return;
       localTimeRef.current += TICK;
 
-      // Compute active line directly from ref — no setState for time
       const lines = syncedLinesRef.current;
       if (lines.length === 0 || lines[0].time < 0) return;
 
@@ -361,16 +348,14 @@ export const LyricsPanel: React.FC = () => {
           break;
         }
       }
-      // Only trigger a re-render when the active line actually changes
       setCurrentLineIndex((prev) => (prev === idx ? prev : idx));
     }, TICK);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []); // empty deps — single instance for the component's lifetime
+  }, []);
 
-  // ── Scroll active line into view ─────────────────────────────────────────
   useEffect(() => {
     if (currentLineIndex >= 0 && activeLineRef.current) {
       activeLineRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
