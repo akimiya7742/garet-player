@@ -116,7 +116,8 @@ export const LyricsPanel: React.FC = () => {
   const [romajiSource, setRomajiSource]   = useState<RomajiSource | null>(null);
   const [isRomanizing, setIsRomanizing]   = useState(false);
 
-  // Ref đánh dấu khi đã áp dụng thành công Built-in Romanization
+  // FIX: Theo dõi key của lyrics hiện tại để phát hiện khi fetch mới
+  const activeLyricsKeyRef = useRef<string>("");
   const hasBuiltInRef = useRef<boolean>(false);
 
   const isJapaneseLyrics = hasJapanese(lyrics) || hasJapaneseInLines(syncedLines);
@@ -130,7 +131,6 @@ export const LyricsPanel: React.FC = () => {
   syncedLinesRef.current = syncedLines;
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
-  const activeLyricsKeyRef = useRef<string>("");
 
   // ── Auto-Romanize Fallback (Kuroshiro -> Gemini AI) ──────────────────────────
   useEffect(() => {
@@ -138,42 +138,62 @@ export const LyricsPanel: React.FC = () => {
       setRomanizedLines([]);
       setRomajiSource(null);
       setIsRomanizing(false);
-      hasBuiltInRef.current = false;
       return;
     }
 
-    // BỎ QUA NẾU: Đã có Built-in Romanization hoặc đã có kết quả romaji trước đó
+    // FIX: Kiểm tra flag TRƯỚC khi tiếp tục
+    if (hasBuiltInRef.current) {
+      console.log("[Lyrics] Built-in romanization already applied, skipping fallback");
+      setIsRomanizing(false);
+      return;
+    }
+
+    // BỎ QUA NẾU: Đã có kết quả romaji hợp lệ từ trước
     if (
-      hasBuiltInRef.current ||
       romajiSource === "Built-in" ||
       (romanizedLines.length === syncedLines.length &&
         romajiSource !== null &&
         romanizedLines.some((l) => l.trim() !== ""))
     ) {
+      console.log("[Lyrics] Valid romanization already exists, skipping fallback");
       setIsRomanizing(false);
       return;
     }
 
     const rawLines = syncedLines.map((l) => l.text);
     const lyricsKey = `${trackTitle || "track"}_${rawLines.length}_${lyrics.slice(0, 30)}`;
-    activeLyricsKeyRef.current = lyricsKey;
 
+    // FIX: Chỉ gọi fallback nếu key khác (fetch mới) hoặc romanizedLines chưa được set
+    if (activeLyricsKeyRef.current === lyricsKey && romanizedLines.length > 0) {
+      console.log("[Lyrics] Romanization already in progress for this track");
+      return;
+    }
+
+    activeLyricsKeyRef.current = lyricsKey;
     setIsRomanizing(true);
     const cacheKey = `${trackTitle || "lyrics"}_${rawLines.length}_${rawLines.slice(0, 3).join("_")}`;
 
+    console.log("[Lyrics] Starting fallback romanization...");
     romanizeLyricsLines(rawLines, cacheKey)
       .then((res) => {
-        // Kiểm tra lại lần nữa để tránh race condition nếu Built-in được load trong lúc gọi API fallback
+        // FIX: Kiểm tra key và flag một lần nữa để tránh override built-in
         if (
-          !hasBuiltInRef.current &&
           activeLyricsKeyRef.current === lyricsKey &&
+          !hasBuiltInRef.current &&
           res &&
           Array.isArray(res.lines) &&
           res.lines.length > 0
         ) {
-          console.log("[Lyrics] Fallback Romanization applied. Lines:", res.lines.length, "Source:", res.source);
+          console.log(
+            "[Lyrics] Fallback Romanization applied. Lines:",
+            res.lines.length,
+            "Source:",
+            res.source
+          );
           setRomanizedLines(res.lines);
           setRomajiSource(res.source);
+        } else if (hasBuiltInRef.current) {
+          console.log("[Lyrics] Fallback skipped: built-in romanization already set");
         }
       })
       .catch((err) => {
@@ -184,7 +204,7 @@ export const LyricsPanel: React.FC = () => {
           setIsRomanizing(false);
         }
       });
-  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle]); // ĐÃ XÓA romanizedLines và romajiSource khỏi Deps để tránh loop/override
+  }, [lyrics, syncedLines, isJapaneseLyrics, trackTitle]);
 
   // ── Fetch lyrics ──────────────────────────────────────────────────────────
   const fetchLyrics = useCallback(async (queryText: string, bypassCache = false) => {
@@ -192,8 +212,9 @@ export const LyricsPanel: React.FC = () => {
 
     const cacheKey = getLyricsCacheKey(queryText);
 
-    // Reset flag trước khi fetch mới
+    // FIX: Reset flag TRƯỚC khi fetch mới
     hasBuiltInRef.current = false;
+    activeLyricsKeyRef.current = "";
 
     if (!bypassCache) {
       const cached = getStoredLyrics(cacheKey);
@@ -205,8 +226,10 @@ export const LyricsPanel: React.FC = () => {
           setRomanizedLines(cachedRomaji.lines);
           const source = cachedRomaji.source || "kuroshiro";
           setRomajiSource(source);
+          // FIX: Set flag ngay nếu cached romanization là built-in
           if (source === "Built-in") {
             hasBuiltInRef.current = true;
+            console.log("[Lyrics] Cached built-in romanization loaded");
           }
         }
         setError(null);
@@ -226,12 +249,11 @@ export const LyricsPanel: React.FC = () => {
     try {
       const url = `${getApiUrl(backendUrl, "music/lyrics")}?q=${encodeURIComponent(queryText)}`;
       const res = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "ngrok-skip-browser-warning": "69420",
-          },
-        }
-      );
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "69420",
+        },
+      });
 
       if (res.ok) {
         const data = await res.json();
@@ -240,10 +262,7 @@ export const LyricsPanel: React.FC = () => {
         const { content } = extractLyrics(data);
 
         if (content) {
-          setLyrics(content);
-          saveStoredLyrics(cacheKey, content);
-
-          // Parse ngay các dòng LRC
+          // FIX: Parse LRC trước khi check romanization
           const { lines: parsedLines } = parseLRC(content);
 
           // 1. Primary: Check if built-in romanization exists in API response
@@ -253,18 +272,35 @@ export const LyricsPanel: React.FC = () => {
             (typeof data.romanizedLyrics === "string" && data.romanizedLyrics) ||
             "";
 
-          if (rawRomanization) {
-            const builtInRomaji = parseRomanizationFromPayload(rawRomanization, parsedLines);
-            if (builtInRomaji && builtInRomaji.length > 0) {
-              console.log("[Lyrics] Found & applied Built-in romanization from API");
-              
-              // Đánh dấu đã có Built-in trước khi cập nhật State
-              hasBuiltInRef.current = true;
-              setRomanizedLines(builtInRomaji);
-              setRomajiSource("Built-in");
-              saveStoredRomanization(cacheKey, builtInRomaji, "Built-in");
+          // FIX: Set flag TRƯỚC khi cập nhật state
+          let hasBuiltIn = false;
+          let builtInLines: string[] = [];
+
+          if (rawRomanization && rawRomanization.trim()) {
+            const parsed = parseRomanizationFromPayload(rawRomanization, parsedLines);
+            if (parsed && parsed.length > 0) {
+              hasBuiltIn = true;
+              builtInLines = parsed;
+              console.log("[Lyrics] Found built-in romanization from API, lines:", parsed.length);
             }
           }
+
+          // Update state and refs in correct order
+          setLyrics(content);
+          saveStoredLyrics(cacheKey, content);
+          setSyncedLines(parsedLines);
+          setIsSynced(parsedLines.length > 0);
+
+          if (hasBuiltIn) {
+            // FIX: Set flag TRƯỚC state update
+            hasBuiltInRef.current = true;
+            console.log("[Lyrics] Setting built-in romanization, flag set before state update");
+            
+            setRomanizedLines(builtInLines);
+            setRomajiSource("Built-in");
+            saveStoredRomanization(cacheKey, builtInLines, "Built-in");
+          }
+          // Nếu không có built-in, để useEffect tự xử lý fallback
         } else {
           setError("No lyrics found for this track.");
         }
@@ -311,7 +347,7 @@ export const LyricsPanel: React.FC = () => {
       setCurrentLineIndex(-1);
       hasBuiltInRef.current = false;
     }
-  }, [trackUrl, trackTitle]);
+  }, [trackUrl, trackTitle, fetchLyrics]);
 
   useEffect(() => {
     if (!lyrics) {
