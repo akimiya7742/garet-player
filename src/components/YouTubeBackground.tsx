@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useMusicWS } from "../contexts/MusicWSContext";
+import { useAuth } from "../contexts/AuthContext";
 import { isVideoBackgroundEnabled, getApiUrl } from "../utils/apiUrl";
 import styles from "./YouTubeBackground.module.css";
 
@@ -34,16 +35,19 @@ export const extractYouTubeVideoId = (url?: string | null): string | null => {
 
 export const YouTubeBackground: React.FC = () => {
   const { statistics } = useMusicWS();
+  const { token } = useAuth();
   const [bgEnabled, setBgEnabled] = useState<boolean>(true);
   const [apiReady, setApiReady] = useState<boolean>(false);
   const [isYTPlayerReady, setIsYTPlayerReady] = useState<boolean>(false);
+  const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
   const [streamFailed, setStreamFailed] = useState<boolean>(false);
+  const [streamUrl, setStreamUrl] = useState<string>("");
   const [backendUrlVer, setBackendUrlVer] = useState<number>(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const lastTrackUrlRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const currentTrackUrl = statistics?.track?.url;
   const isPaused = statistics?.paused ?? true;
@@ -52,12 +56,6 @@ export const YouTubeBackground: React.FC = () => {
   const videoId = useMemo(() => {
     return extractYouTubeVideoId(currentTrackUrl);
   }, [currentTrackUrl]);
-
-  // Construct stream URL from API_URL/proxy/stream?url=${video_url}
-  const streamUrl = useMemo(() => {
-    if (!currentTrackUrl) return "";
-    return getApiUrl("", `proxy/stream?url=${encodeURIComponent(currentTrackUrl)}`);
-  }, [currentTrackUrl, backendUrlVer]);
 
   // Read video background preference & listen for changes
   useEffect(() => {
@@ -83,20 +81,85 @@ export const YouTubeBackground: React.FC = () => {
     };
   }, []);
 
-  // Reset stream error when track changes
+  // -------------------------------------------------------------
+  // Fetch stream url from /music/video/url?id= and pass to /proxy/stream
+  // -------------------------------------------------------------
   useEffect(() => {
-    if (lastTrackUrlRef.current !== currentTrackUrl) {
-      lastTrackUrlRef.current = currentTrackUrl || null;
-      setStreamFailed(false);
-      setIsYTPlayerReady(false);
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch (e) {}
-        playerRef.current = null;
-      }
+    // Abort previous in-flight fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
-  }, [currentTrackUrl]);
+
+    // Reset video / player readiness on track change
+    setIsVideoReady(false);
+    setIsYTPlayerReady(false);
+    setStreamFailed(false);
+    setStreamUrl("");
+
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy();
+      } catch {}
+      playerRef.current = null;
+    }
+
+    if (!currentTrackUrl || !bgEnabled) {
+      return;
+    }
+
+    if (!videoId) {
+      // Non-YouTube URL: try directly proxying the raw track url
+      const fallbackProxyUrl = getApiUrl("", `proxy/stream?url=${encodeURIComponent(currentTrackUrl)}`);
+      setStreamUrl(fallbackProxyUrl);
+      return;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const fetchDirectVideoUrl = async () => {
+      try {
+        const fetchUrl = getApiUrl("", `music/video/url?id=${encodeURIComponent(videoId)}`);
+        const headers: Record<string, string> = {
+          "ngrok-skip-browser-warning": "69420",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const res = await fetch(fetchUrl, {
+          headers,
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch video url: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const rawVideoUrl = data?.video || data?.url;
+
+        if (data?.success && rawVideoUrl) {
+          // Pass the direct googlevideo stream url to proxy/stream
+          const proxyStreamUrl = getApiUrl("", `proxy/stream?url=${encodeURIComponent(rawVideoUrl)}`);
+          setStreamUrl(proxyStreamUrl);
+        } else {
+          throw new Error("No video url in response");
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        console.warn("[BackgroundVideo] /music/video/url failed, falling back to YouTube iframe:", err);
+        setStreamFailed(true);
+      }
+    };
+
+    fetchDirectVideoUrl();
+
+    return () => {
+      controller.abort();
+    };
+  }, [currentTrackUrl, videoId, bgEnabled, token, backendUrlVer]);
 
   // Load YouTube IFrame API script once if fallback needed
   useEffect(() => {
@@ -127,30 +190,46 @@ export const YouTubeBackground: React.FC = () => {
   // PRIMARY MODE: Stream Video Tag Sync & Controls
   // -------------------------------------------------------------
 
-  // Sync play/pause for native video stream
+  // Handle stream video can play / ready event: sync position and play only when ready
+  const handleVideoCanPlay = useCallback(() => {
+    if (!videoRef.current) return;
+    try {
+      videoRef.current.muted = true;
+      const targetSec = timestampMs / 1000;
+      if (targetSec > 0 && Math.abs(videoRef.current.currentTime - targetSec) > 0.5) {
+        videoRef.current.currentTime = targetSec;
+      }
+      
+      setIsVideoReady(true);
+
+      // Play only if player is not paused, otherwise remain paused
+      if (!isPaused) {
+        videoRef.current.play().catch(() => {});
+      } else {
+        videoRef.current.pause();
+      }
+    } catch {}
+  }, [timestampMs, isPaused]);
+
+  // Sync play/pause for native video stream once video is ready
   useEffect(() => {
-    if (streamFailed || !videoRef.current) return;
+    if (streamFailed || !videoRef.current || !isVideoReady) return;
 
     try {
       videoRef.current.muted = true;
       if (isPaused) {
         videoRef.current.pause();
       } else {
-        const playPromise = videoRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            // Auto-play was prevented
-          });
-        }
+        videoRef.current.play().catch(() => {});
       }
     } catch (e) {
       console.warn("[BackgroundVideo] Video play/pause sync error:", e);
     }
-  }, [isPaused, streamFailed, streamUrl]);
+  }, [isPaused, streamFailed, isVideoReady]);
 
-  // Sync timestamp/duration position for native video stream
+  // Sync timestamp/duration position for native video stream once video is ready
   useEffect(() => {
-    if (streamFailed || !videoRef.current) return;
+    if (streamFailed || !videoRef.current || !isVideoReady) return;
 
     try {
       const targetSec = timestampMs / 1000;
@@ -159,29 +238,13 @@ export const YouTubeBackground: React.FC = () => {
       if (Math.abs(currentSec - targetSec) > 1.5 && targetSec >= 0) {
         videoRef.current.currentTime = targetSec;
       }
-    } catch (e) {}
-  }, [timestampMs, streamFailed]);
-
-  // Handle stream video loaded metadata
-  const handleVideoLoadedMetadata = useCallback(() => {
-    if (!videoRef.current) return;
-    try {
-      videoRef.current.muted = true;
-      const targetSec = timestampMs / 1000;
-      if (targetSec > 0) {
-        videoRef.current.currentTime = targetSec;
-      }
-      if (!isPaused) {
-        videoRef.current.play().catch(() => {});
-      } else {
-        videoRef.current.pause();
-      }
-    } catch (e) {}
-  }, [timestampMs, isPaused]);
+    } catch {}
+  }, [timestampMs, streamFailed, isVideoReady]);
 
   // Handle video playback errors -> switch to YouTube iframe fallback
   const handleStreamError = useCallback(() => {
-    console.warn("[BackgroundVideo] Proxy stream unavailable/failed for track. Falling back to YouTube iframe player.");
+    console.warn("[BackgroundVideo] Proxy stream failed or error occurred. Switching to YouTube iframe player.");
+    setIsVideoReady(false);
     setStreamFailed(true);
   }, []);
 
@@ -189,12 +252,12 @@ export const YouTubeBackground: React.FC = () => {
   // FALLBACK MODE: YouTube Iframe API Player
   // -------------------------------------------------------------
   useEffect(() => {
-    // Only instantiate YouTube iframe player if stream failed or explicitly in fallback mode
+    // Only instantiate YouTube iframe player if stream failed and videoId is valid
     if (!streamFailed || !apiReady || !videoId || !bgEnabled) {
       if (playerRef.current && (!streamFailed || !videoId || !bgEnabled)) {
         try {
           playerRef.current.destroy();
-        } catch (e) {}
+        } catch {}
         playerRef.current = null;
         setIsYTPlayerReady(false);
       }
@@ -214,7 +277,7 @@ export const YouTubeBackground: React.FC = () => {
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
-        } catch (e) {}
+        } catch {}
       }
 
       playerRef.current = new window.YT.Player(targetDivId, {
@@ -249,16 +312,19 @@ export const YouTubeBackground: React.FC = () => {
               if (typeof event.target.setOption === "function") {
                 event.target.setOption("captions", "track", {});
               }
+              
+              const startSec = Math.floor(timestampMs / 1000);
+              if (startSec > 0) {
+                event.target.seekTo(startSec, true);
+              }
+
+              // Only play if not paused
               if (!isPaused) {
                 event.target.playVideo();
               } else {
                 event.target.pauseVideo();
               }
-              const startSec = Math.floor(timestampMs / 1000);
-              if (startSec > 0) {
-                event.target.seekTo(startSec, true);
-              }
-            } catch (e) {}
+            } catch {}
             setIsYTPlayerReady(true);
           },
           onStateChange: (event: any) => {
@@ -267,11 +333,11 @@ export const YouTubeBackground: React.FC = () => {
                 event.target.unloadModule("captions");
                 event.target.unloadModule("cc");
               }
-            } catch (e) {}
+            } catch {}
             if (event.data === window.YT.PlayerState.ENDED) {
               try {
                 event.target.playVideo();
-              } catch (e) {}
+              } catch {}
             }
           },
         },
@@ -307,27 +373,31 @@ export const YouTubeBackground: React.FC = () => {
       if (Math.abs(currentSec - targetSec) > 1.8) {
         playerRef.current.seekTo(targetSec, true);
       }
-    } catch (e) {}
+    } catch {}
   }, [streamFailed, timestampMs, isYTPlayerReady]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
-        } catch (e) {}
+        } catch {}
       }
     };
   }, []);
 
   const hasMedia = !!currentTrackUrl;
-  const showVideo = bgEnabled && hasMedia && (!streamFailed || !!videoId);
+  const isCurrentlyReady = (!streamFailed && isVideoReady) || (streamFailed && isYTPlayerReady);
+  const showVideo = bgEnabled && hasMedia && isCurrentlyReady;
 
-  // Toggle global class to hide ambient gradients when video is active
+  // Toggle global class to hide ambient background gradients when video is active
   useEffect(() => {
     if (typeof document !== "undefined") {
-      if (showVideo) {
+      if (bgEnabled && hasMedia) {
         document.body.classList.add("has-video-bg");
       } else {
         document.body.classList.remove("has-video-bg");
@@ -338,7 +408,7 @@ export const YouTubeBackground: React.FC = () => {
         document.body.classList.remove("has-video-bg");
       }
     };
-  }, [showVideo]);
+  }, [bgEnabled, hasMedia]);
 
   return (
     <div className={styles.videoBackgroundContainer} aria-hidden="true">
@@ -354,12 +424,13 @@ export const YouTubeBackground: React.FC = () => {
             src={streamUrl}
             muted
             playsInline
-            autoPlay
+            autoPlay={false}
             loop
             controls={false}
             disablePictureInPicture
             className={styles.videoElement}
-            onLoadedMetadata={handleVideoLoadedMetadata}
+            onCanPlay={handleVideoCanPlay}
+            onLoadedData={handleVideoCanPlay}
             onError={handleStreamError}
           />
         ) : (

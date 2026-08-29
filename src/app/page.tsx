@@ -185,6 +185,25 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Floating Advanced Settings in Bottom Corner */}
+        <div className={styles.landingBottomCorner}>
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className={styles.landingAdvancedBtn}
+            title="Configure Backend URL and settings"
+          >
+            <Settings className={styles.settingsIcon} />
+            <span>Advanced settings</span>
+          </button>
+        </div>
+
+        {/* Settings Modal on Login Screen */}
+        <SettingsModal 
+          isOpen={isSettingsOpen} 
+          onClose={() => setIsSettingsOpen(false)} 
+        />
       </main>
     );
   }
