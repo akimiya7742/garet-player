@@ -208,7 +208,46 @@
 
 /* ── Mobile ──────────────────────────────────────────── */
 @media (max-width: 768px) {
+  .relatedContainer {
+    padding: 14px 12px;
+    max-height: none;
+    min-height: 380px;
+    height: auto;
+  }
+
+  .scrollArea {
+    max-height: calc(100dvh - 250px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .item {
+    padding: 8px 10px;
+  }
+
   .playBtn {
     opacity: 1;
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .playIcon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .duration {
+    display: none;
+  }
+  .thumbnail, .thumbnailFallback {
+    width: 32px;
+    height: 32px;
+  }
+  .index {
+    width: 16px;
+    font-size: 0.75rem;
   }
 }

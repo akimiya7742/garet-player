@@ -194,7 +194,17 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setVoiceConnection(null);
     }
 
+    const handleBackendUrlChange = () => {
+      console.log("[WS] Backend URL changed, reconnecting WebSocket...");
+      if (isAuthenticated && token) {
+        connectWS();
+      }
+    };
+
+    window.addEventListener("backend-url-changed", handleBackendUrlChange);
+
     return () => {
+      window.removeEventListener("backend-url-changed", handleBackendUrlChange);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) {
         wsRef.current.close();

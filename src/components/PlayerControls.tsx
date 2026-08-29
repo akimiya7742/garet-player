@@ -126,6 +126,7 @@ export const PlayerControls: React.FC = () => {
         <div className={`${styles.vinylWrapper} ${isPlaying ? styles.rotating : ""}`}>
           <img 
             src={track?.thumbnail || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=500"} 
+            alt={track?.title || "xxx"}
             className={styles.artworkImage}
           />
           <div className={styles.vinylCenter} />

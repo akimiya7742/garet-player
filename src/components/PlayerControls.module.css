@@ -348,14 +348,98 @@
 
 @media (max-width: 768px) {
   .playerConsole {
-    padding: 20px;
-    min-height: 440px;
+    padding: 18px 16px;
+    min-height: auto;
+    gap: 10px;
+  }
+  .topSection {
+    margin-bottom: 10px;
+    gap: 8px;
   }
   .title {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
+  }
+  .artist {
+    font-size: 0.85rem;
+  }
+  .artworkSection {
+    margin: 6px 0 14px 0;
   }
   .vinylWrapper {
-    width: 140px;
-    height: 140px;
+    width: 135px;
+    height: 135px;
+  }
+  .vinylCenter {
+    width: 32px;
+    height: 32px;
+  }
+  .timelineSection {
+    margin-bottom: 12px;
+    gap: 6px;
+  }
+  .timelineSlider {
+    height: 7px;
+  }
+  .timelineSlider::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+  }
+  .controlsSection {
+    margin-bottom: 12px;
+  }
+  .centerControls {
+    gap: 12px;
+  }
+  .playPauseBtn {
+    padding: 13px;
+  }
+  .playPauseIcon {
+    width: 22px;
+    height: 22px;
+  }
+  .iconBtn {
+    padding: 8px;
+  }
+  .controlIcon {
+    width: 16px;
+    height: 16px;
+  }
+  .bottomSection {
+    padding-top: 12px;
+  }
+  .volumeWrapper {
+    width: 100%;
+    justify-content: center;
+    padding: 6px 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .playerConsole {
+    padding: 14px 12px;
+  }
+  .title {
+    font-size: 1.15rem;
+  }
+  .vinylWrapper {
+    width: 115px;
+    height: 115px;
+  }
+  .centerControls {
+    gap: 8px;
+  }
+  .playPauseBtn {
+    padding: 11px;
+  }
+  .playPauseIcon {
+    width: 20px;
+    height: 20px;
+  }
+  .iconBtn {
+    padding: 7px;
+  }
+  .controlIcon {
+    width: 15px;
+    height: 15px;
   }
 }

@@ -187,3 +187,51 @@
   height: 12px;
   fill: currentColor;
 }
+
+@media (max-width: 768px) {
+  .searchContainer {
+    padding: 14px 12px;
+    max-height: none;
+    min-height: 380px;
+    height: auto;
+  }
+
+  .searchInput {
+    font-size: 16px; /* Prevents auto-zoom on iOS safari */
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .resultsArea {
+    max-height: calc(100dvh - 250px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .playBtn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .playIcon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .duration {
+    display: none;
+  }
+  .resultItem {
+    padding: 8px;
+  }
+  .thumbnail, .thumbnailFallback {
+    width: 34px;
+    height: 34px;
+    margin-right: 8px;
+  }
+}

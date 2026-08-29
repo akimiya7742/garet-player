@@ -9,32 +9,44 @@ import SearchPanel from "../components/SearchPanel";
 import LyricsPanel from "../components/LyricsPanel";
 import RelatedPanel from "../components/RelatedPanel";
 import Visualizer from "../components/Visualizer";
+import YouTubeBackground from "../components/YouTubeBackground";
+import SettingsModal from "../components/SettingsModal";
 import { 
   LogIn, LogOut, Search, ListMusic, FileText, 
   Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
-  Loader2, ExternalLink, Trash2, Check
+  Loader2, ExternalLink, Play, Pause, SkipForward, Disc,
+  Settings
 } from "lucide-react";
-import { clearAllLyricsCache } from "../utils/lyricsCache";
 import styles from "./page.module.css";
 
 export default function Home() {
   const { user, isAuthenticated, loading, isActivity, login, logout, setAuthToken } = useAuth();
-  const { isConnected, isWSAuthenticated, voiceConnection, getVoiceConnection, statistics, errorMsg, joinVoice } = useMusicWS();
+  const { 
+    isConnected, 
+    isWSAuthenticated, 
+    voiceConnection, 
+    getVoiceConnection, 
+    statistics, 
+    errorMsg, 
+    joinVoice,
+    togglePlay,
+    skipTrack
+  } = useMusicWS();
   
-  // Tab states for managing search, queue, and lyrics views
-  const [activeTab, setActiveTab] = useState<"search" | "queue" | "lyrics" | "related">("search");
+  // Tab states for managing views: on mobile includes "player"
+  const [activeTab, setActiveTab] = useState<"player" | "search" | "queue" | "lyrics" | "related">("search");
 
   // Mobile bottom player expansion drawer state
   const [mobilePlayerExpanded, setMobilePlayerExpanded] = useState(false);
+
+  // Settings modal open state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Local state to track and display active toasts/errors
   const [activeError, setActiveError] = useState<string | null>(null);
 
   // Local state to track join voice API loading
   const [isJoining, setIsJoining] = useState(false);
-
-  // Local state for cleared lyrics cache feedback
-  const [clearedCacheCount, setClearedCacheCount] = useState<number | null>(null);
 
   // Detect iframe embedding
   const [isInIframe, setIsInIframe] = useState(false);
@@ -49,14 +61,6 @@ export default function Home() {
     setIsJoining(true);
     await joinVoice();
     setIsJoining(false);
-  };
-
-  const handleClearLyricsCache = () => {
-    const { clearedCount } = clearAllLyricsCache();
-    setClearedCacheCount(clearedCount);
-    setTimeout(() => {
-      setClearedCacheCount(null);
-    }, 2400);
   };
 
   // Intercept the Discord auth callback hash de-opt redirect (/#/login-success)
@@ -190,6 +194,7 @@ export default function Home() {
   // 3. Authenticated View (Complete Glassmorphic Console Dashboard)
   return (
     <main className={styles.dashboardWrapper}>
+      <YouTubeBackground />
       <div className="ambient-glow" />
 
       <div className="app-container">
@@ -224,25 +229,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Diagnostics WS Connection badges */}
+          {/* Diagnostics WS Connection and Settings badges */}
           <div className={styles.headerControls}>
-            <button 
-              type="button"
-              onClick={handleClearLyricsCache} 
-              className={`glass-btn ${styles.clearCacheBtn} ${clearedCacheCount !== null ? styles.clearCacheBtnSuccess : ""}`}
-              title="Clear cached song lyrics and Romaji translations from local storage"
-              aria-label="Clear Lyrics Cache"
-            >
-              {clearedCacheCount !== null ? (
-                <Check className={styles.clearCacheIcon} />
-              ) : (
-                <Trash2 className={styles.clearCacheIcon} />
-              )}
-              <span className={styles.clearCacheText}>
-                {clearedCacheCount !== null ? "Cache Cleared" : "Clear Lyrics Cache"}
-              </span>
-            </button>
-
             <div 
               className={`${styles.connectionBadge} ${isConnected && isWSAuthenticated ? styles.connected : styles.disconnected}`}
               onClick={isConnected ? undefined : getVoiceConnection}
@@ -252,6 +240,17 @@ export default function Home() {
               <span>{isConnected && isWSAuthenticated ? "WS Connected" : "Sync Dropped"}</span>
               {!isConnected && <RefreshCw className={styles.syncIcon} />}
             </div>
+
+            <button 
+              type="button"
+              onClick={() => setIsSettingsOpen(true)} 
+              className={`glass-btn ${styles.settingsBtn}`}
+              title="Open player & backend settings"
+              aria-label="Settings"
+            >
+              <Settings className={styles.settingsIcon} />
+              <span className={styles.settingsText}>Settings</span>
+            </button>
 
             <button 
               type="button"
@@ -269,12 +268,12 @@ export default function Home() {
         {/* Dashboard Main Console Area */}
         <div className={styles.contentGrid}>
           
-          {/* Left Column: Player Controller Screen */}
+          {/* Desktop Left Column: Player Controller Screen */}
           <section className={styles.playerColumn}>
             <PlayerControls />
           </section>
 
-          {/* Right Column: Dynamic tab sections */}
+          {/* Dynamic tab sections (Mobile & Desktop) */}
           <section className={styles.actionColumn}>
             {/* Warning when active Voice Connection is missing */}
             {!voiceConnection ? (
@@ -318,6 +317,16 @@ export default function Home() {
                 <nav className={`glass-panel ${styles.tabsNav}`} aria-label="Music control panels">
                   <button
                     type="button"
+                    onClick={() => setActiveTab("player")}
+                    className={`${styles.tabBtn} ${styles.mobileOnlyTab} ${activeTab === "player" ? styles.activeTab : ""}`}
+                    aria-selected={activeTab === "player"}
+                    role="tab"
+                  >
+                    <Disc className={styles.tabIcon} />
+                    <span>Player</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setActiveTab("search")}
                     className={`${styles.tabBtn} ${activeTab === "search" ? styles.activeTab : ""}`}
                     aria-selected={activeTab === "search"}
@@ -335,6 +344,9 @@ export default function Home() {
                   >
                     <ListMusic className={styles.tabIcon} />
                     <span>Queue</span>
+                    {(statistics?.queue?.length ?? 0) > 0 && (
+                      <span className={styles.tabBadge}>{statistics!.queue.length}</span>
+                    )}
                   </button>
                   <button
                     type="button"
@@ -363,6 +375,11 @@ export default function Home() {
 
                 {/* Scoped Tab Content Views */}
                 <div className={styles.tabContent}>
+                  {activeTab === "player" && (
+                    <div className={styles.mobilePlayerWrapper}>
+                      <PlayerControls />
+                    </div>
+                  )}
                   {activeTab === "search" && <SearchPanel />}
                   {activeTab === "queue" && <QueueList />}
                   {activeTab === "lyrics" && <LyricsPanel />}
@@ -378,25 +395,68 @@ export default function Home() {
       {voiceConnection && statistics?.track && (
         <>
           <div 
-            className={`glass-panel ${styles.mobilePlayBar}`}
-            onClick={() => setMobilePlayerExpanded(true)}
+            className={`glass-panel ${styles.mobilePlayBar} ${activeTab === "player" ? styles.mobilePlayBarHidden : ""}`}
           >
-            <img 
-              src={statistics.track.thumbnail || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=200"} 
-              className={styles.mobileArt}
-            />
-            <div className={styles.mobileInfo}>
-              <p className={styles.mobileTitle}>{statistics.track.title}</p>
-              <p className={styles.mobileArtist}>{statistics.track.author || "Discord Player"}</p>
+            <div 
+              className={styles.mobilePlayBarMain}
+              onClick={() => setMobilePlayerExpanded(true)}
+              role="button"
+              tabIndex={0}
+              aria-label="Expand full screen player"
+            >
+              <img 
+                src={statistics.track.thumbnail || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=200"} 
+                className={`${styles.mobileArt} ${isTrackActive && !statistics.paused ? styles.rotatingArt : ""}`}
+                alt={statistics.track.title}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=200";
+                }}
+              />
+              <div className={styles.mobileInfo}>
+                <p className={styles.mobileTitle}>{statistics.track.title}</p>
+                <p className={styles.mobileArtist}>{statistics.track.author || "Discord Player"}</p>
+              </div>
+              <div className={styles.mobileVisualizer}>
+                <Visualizer isPlaying={isTrackActive && !statistics.paused} />
+              </div>
             </div>
-            <div className={styles.mobileVisualizer}>
-              <Visualizer isPlaying={isTrackActive && !statistics.paused} />
+
+            <div className={styles.mobilePlayBarActions}>
+              <button 
+                type="button" 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  togglePlay(); 
+                }}
+                className={styles.mobileBarBtn}
+                title={statistics.paused ? "Play track" : "Pause track"}
+                aria-label={statistics.paused ? "Play track" : "Pause track"}
+              >
+                {statistics.paused ? (
+                  <Play className={styles.mobileBarIcon} />
+                ) : (
+                  <Pause className={styles.mobileBarIcon} />
+                )}
+              </button>
+              <button 
+                type="button" 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  skipTrack(); 
+                }}
+                className={styles.mobileBarBtn}
+                title="Skip to next track"
+                aria-label="Skip to next track"
+              >
+                <SkipForward className={styles.mobileBarIcon} />
+              </button>
             </div>
           </div>
 
           {/* Full Screen Sliding Player overlay for Mobile devices */}
           <div className={`${styles.mobileDrawer} ${mobilePlayerExpanded ? styles.drawerOpen : ""}`}>
             <div className={styles.drawerHeader}>
+              <div className={styles.drawerHeaderTitle}>Now Playing</div>
               <button 
                 type="button"
                 className={styles.drawerCloseBtn}
@@ -412,6 +472,12 @@ export default function Home() {
           </div>
         </>
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
 
       {/* Dynamic Glassmorphic Toast Notification */}
       {activeError && (
