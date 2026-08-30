@@ -18,9 +18,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   isActivity: boolean;
+  isConnectingDiscord: boolean;
+  setIsConnectingDiscord: (open: boolean) => void;
+  authError: string | null;
+  setAuthError: (err: string | null) => void;
   login: () => void;
+  reopenPopup: () => void;
   logout: () => void;
-  setAuthToken: (token: string) => void;
+  setAuthToken: (token: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,9 +38,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isActivity, setIsActivity] = useState(false);
+  const [isConnectingDiscord, setIsConnectingDiscord] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // Dùng ref để tránh việc useEffect trigger loop hoặc gọi song song nhiều lần
   const isAuthenticating = useRef(false);
+  const popupRef = useRef<Window | null>(null);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "";
 
@@ -43,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const safeGetToken = (): string | null => {
     try {
       return localStorage.getItem("discord_music_token") || memoryToken;
-    } catch (e) {
+    } catch {
       return memoryToken;
     }
   };
@@ -56,12 +64,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         localStorage.removeItem("discord_music_token");
       }
-    } catch (e) {
+    } catch {
       console.warn("[Auth] LocalStorage restricted, using memory storage instead.");
     }
   };
 
-  const fetchUserProfile = async (jwtToken: string) => {
+  const fetchUserProfile = async (jwtToken: string): Promise<boolean> => {
     try {
       const url = getApiUrl(backendUrl, "user/me");
       const res = await fetch(url, {
@@ -76,11 +84,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userData);
         setToken(jwtToken);
         safeSetToken(jwtToken);
+        setAuthError(null);
+        setIsConnectingDiscord(false);
+        return true;
       } else {
+        let errMessage = `Authentication failed (HTTP ${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData && (errData.message || errData.error)) {
+            errMessage = errData.message || errData.error;
+          }
+        } catch {}
+        setAuthError(errMessage);
         clearAuth();
+        return false;
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to connect to backend server";
       console.error("[Auth] Error fetching user profile:", err);
+      setAuthError(msg);
+      clearAuth();
+      return false;
     } finally {
       setLoading(false);
     }
@@ -143,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("[Auth] Token exchange succeeded for:", data.user?.username);
       
       await fetchUserProfile(data.token);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[Auth] Discord Activity auth failed:", err);
       // Fallback
       const storedToken = safeGetToken();
@@ -189,46 +213,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const openAuthPopup = () => {
+    const url = getApiUrl(backendUrl, "auth/discord/login");
+    const width = 540;
+    const height = 820;
+    const left = typeof window.screenX !== "undefined" ? window.screenX + Math.max(0, (window.outerWidth - width) / 2) : 100;
+    const top = typeof window.screenY !== "undefined" ? window.screenY + Math.max(0, (window.outerHeight - height) / 2) : 100;
+    
+    try {
+      const popup = window.open(
+        url,
+        "discord_auth_popup",
+        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+      );
+
+      popupRef.current = popup;
+
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        console.warn("[Auth] Popup blocked by browser, opening in new tab");
+        window.open(url, "_blank");
+      } else {
+        // Monitor popup status and localStorage synchronization
+        const pollTimer = setInterval(() => {
+          const stored = safeGetToken();
+          if (stored && stored !== token) {
+            setAuthToken(stored);
+            clearInterval(pollTimer);
+            if (popup && !popup.closed) popup.close();
+          }
+          if (popup.closed) {
+            clearInterval(pollTimer);
+          }
+        }, 800);
+      }
+    } catch (e) {
+      console.warn("[Auth] Failed to open popup, falling back to window.open", e);
+      window.open(url, "_blank");
+    }
+  };
+
   const login = () => {
     if (typeof window !== "undefined") {
       if (isActivity) {
         performDiscordActivityAuth();
       } else {
-        const url = getApiUrl(backendUrl, "auth/discord/login");
-        
-        // When running in an iframe or standalone browser, open Discord auth in a dedicated popup window
-        // to prevent Discord from blocking iframe embedding (X-Frame-Options: SAMEORIGIN)
-        const width = 540;
-        const height = 820;
-        const left = typeof window.screenX !== "undefined" ? window.screenX + Math.max(0, (window.outerWidth - width) / 2) : 100;
-        const top = typeof window.screenY !== "undefined" ? window.screenY + Math.max(0, (window.outerHeight - height) / 2) : 100;
-        
-        const popup = window.open(
-          url,
-          "discord_auth_popup",
-          `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
-        );
-
-        if (!popup || popup.closed || typeof popup.closed === "undefined") {
-          // Popup blocked or not supported: fallback to open in new tab
-          console.warn("[Auth] Popup blocked by browser, falling back to new tab");
-          window.open(url, "_blank");
-        } else {
-          // Monitor popup status and localStorage synchronization
-          const pollTimer = setInterval(() => {
-            const stored = safeGetToken();
-            if (stored && stored !== token) {
-              setAuthToken(stored);
-              clearInterval(pollTimer);
-              if (popup && !popup.closed) popup.close();
-            }
-            if (popup.closed) {
-              clearInterval(pollTimer);
-            }
-          }, 800);
-        }
+        setAuthError(null);
+        setIsConnectingDiscord(true);
+        openAuthPopup();
       }
     }
+  };
+
+  const reopenPopup = () => {
+    openAuthPopup();
   };
 
   const logout = () => {
@@ -238,11 +275,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const setAuthToken = (newToken: string) => {
+  const setAuthToken = async (newToken: string): Promise<boolean> => {
     setToken(newToken);
     safeSetToken(newToken);
     setLoading(true);
-    fetchUserProfile(newToken);
+    return await fetchUserProfile(newToken);
   };
 
   const isAuthenticated = !!token && !!user;
@@ -255,7 +292,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated,
         loading,
         isActivity,
+        isConnectingDiscord,
+        setIsConnectingDiscord,
+        authError,
+        setAuthError,
         login,
+        reopenPopup,
         logout,
         setAuthToken,
       }}

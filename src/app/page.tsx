@@ -11,16 +11,27 @@ import RelatedPanel from "../components/RelatedPanel";
 import Visualizer from "../components/Visualizer";
 import YouTubeBackground from "../components/YouTubeBackground";
 import SettingsModal from "../components/SettingsModal";
+import DiscordAuthModal from "../components/DiscordAuthModal";
 import { 
   LogIn, LogOut, Search, ListMusic, FileText, 
   Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
   Loader2, ExternalLink, Play, Pause, SkipForward, Disc,
-  Settings
+  Settings, KeyRound
 } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function Home() {
-  const { user, isAuthenticated, loading, isActivity, login, logout, setAuthToken } = useAuth();
+  const { 
+    user, 
+    isAuthenticated, 
+    loading, 
+    isActivity, 
+    isConnectingDiscord, 
+    setIsConnectingDiscord, 
+    login, 
+    logout, 
+    setAuthToken 
+  } = useAuth();
   const { 
     isConnected, 
     isWSAuthenticated, 
@@ -203,6 +214,12 @@ export default function Home() {
         <SettingsModal 
           isOpen={isSettingsOpen} 
           onClose={() => setIsSettingsOpen(false)} 
+        />
+
+        {/* Discord Connecting & Manual Token Modal */}
+        <DiscordAuthModal
+          isOpen={isConnectingDiscord}
+          onClose={() => setIsConnectingDiscord(false)}
         />
       </main>
     );
@@ -496,6 +513,12 @@ export default function Home() {
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
+      />
+
+      {/* Discord Connecting & Manual Token Modal */}
+      <DiscordAuthModal
+        isOpen={isConnectingDiscord}
+        onClose={() => setIsConnectingDiscord(false)}
       />
 
       {/* Dynamic Glassmorphic Toast Notification */}
