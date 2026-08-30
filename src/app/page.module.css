@@ -683,6 +683,28 @@
   .drawerContent { padding-inline: 16px; }
 }
 
+@media (max-width: 768px) {
+  .playerColumn { display: none; }
+  .mobileOnlyTab { display: none; }
+  .mobilePlayBarHidden { display: flex; }
+  .tabsNav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    overflow: visible;
+  }
+  .tabBtn {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 6px;
+    gap: 0;
+  }
+  .tabBtn > span:not(.tabBadge) { display: none; }
+  .tabIcon { width: 19px; height: 19px; }
+  .tabBadge { position: absolute; margin: -22px -22px 0 0; }
+  .tabBtn { position: relative; }
+}
+
 @media (max-width: 390px) {
   .header { padding-inline: 10px; }
   .username { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
