@@ -37,6 +37,7 @@ export const YouTubeBackground: React.FC = () => {
   const { statistics } = useMusicWS();
   const { token } = useAuth();
   const [bgEnabled, setBgEnabled] = useState<boolean>(true);
+  const [isMobileDisplay, setIsMobileDisplay] = useState<boolean>(false);
   const [apiReady, setApiReady] = useState<boolean>(false);
   const [isYTPlayerReady, setIsYTPlayerReady] = useState<boolean>(false);
   const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
@@ -56,6 +57,17 @@ export const YouTubeBackground: React.FC = () => {
   const videoId = useMemo(() => {
     return extractYouTubeVideoId(currentTrackUrl);
   }, [currentTrackUrl]);
+
+  const videoBackgroundAllowed = bgEnabled && !isMobileDisplay;
+
+  // Disable video backgrounds on narrow/coarse displays to avoid mobile playback and network work.
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px), (pointer: coarse)");
+    const updateMobileDisplay = () => setIsMobileDisplay(mediaQuery.matches);
+    updateMobileDisplay();
+    mediaQuery.addEventListener("change", updateMobileDisplay);
+    return () => mediaQuery.removeEventListener("change", updateMobileDisplay);
+  }, []);
 
   // Read video background preference & listen for changes
   useEffect(() => {
@@ -104,7 +116,7 @@ export const YouTubeBackground: React.FC = () => {
       playerRef.current = null;
     }
 
-    if (!currentTrackUrl || !bgEnabled) {
+    if (!currentTrackUrl || !videoBackgroundAllowed) {
       return;
     }
 
@@ -159,11 +171,11 @@ export const YouTubeBackground: React.FC = () => {
     return () => {
       controller.abort();
     };
-  }, [currentTrackUrl, videoId, bgEnabled, token, backendUrlVer]);
+  }, [currentTrackUrl, videoId, videoBackgroundAllowed, token, backendUrlVer]);
 
   // Load YouTube IFrame API script once if fallback needed
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !videoBackgroundAllowed) return;
 
     if (window.YT && window.YT.Player) {
       setApiReady(true);
@@ -184,7 +196,7 @@ export const YouTubeBackground: React.FC = () => {
       if (prevCallback) prevCallback();
       setApiReady(true);
     };
-  }, []);
+  }, [videoBackgroundAllowed]);
 
   // -------------------------------------------------------------
   // PRIMARY MODE: Stream Video Tag Sync & Controls
@@ -253,7 +265,7 @@ export const YouTubeBackground: React.FC = () => {
   // -------------------------------------------------------------
   useEffect(() => {
     // Only instantiate YouTube iframe player if stream failed and videoId is valid
-    if (!streamFailed || !apiReady || !videoId || !bgEnabled) {
+    if (!streamFailed || !apiReady || !videoId || !videoBackgroundAllowed) {
       if (playerRef.current && (!streamFailed || !videoId || !bgEnabled)) {
         try {
           playerRef.current.destroy();
@@ -345,7 +357,7 @@ export const YouTubeBackground: React.FC = () => {
     } catch (err) {
       console.warn("[YouTubeBackground] Error instantiating fallback player:", err);
     }
-  }, [streamFailed, apiReady, videoId, bgEnabled, isPaused, timestampMs]);
+  }, [streamFailed, apiReady, videoId, videoBackgroundAllowed, isPaused, timestampMs]);
 
   // Synchronize playback state (Play / Pause) for YT Player
   useEffect(() => {
@@ -392,12 +404,12 @@ export const YouTubeBackground: React.FC = () => {
 
   const hasMedia = !!currentTrackUrl;
   const isCurrentlyReady = (!streamFailed && isVideoReady) || (streamFailed && isYTPlayerReady);
-  const showVideo = bgEnabled && hasMedia && isCurrentlyReady;
+  const showVideo = videoBackgroundAllowed && hasMedia && isCurrentlyReady;
 
   // Toggle global class to hide ambient background gradients when video is active
   useEffect(() => {
     if (typeof document !== "undefined") {
-      if (bgEnabled && hasMedia) {
+      if (videoBackgroundAllowed && hasMedia) {
         document.body.classList.add("has-video-bg");
       } else {
         document.body.classList.remove("has-video-bg");
@@ -408,7 +420,7 @@ export const YouTubeBackground: React.FC = () => {
         document.body.classList.remove("has-video-bg");
       }
     };
-  }, [bgEnabled, hasMedia]);
+  }, [videoBackgroundAllowed, hasMedia]);
 
   return (
     <div className={styles.videoBackgroundContainer} aria-hidden="true">

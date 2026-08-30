@@ -15,7 +15,7 @@ import DiscordAuthModal from "../components/DiscordAuthModal";
 import { 
   LogIn, LogOut, Search, ListMusic, FileText, 
   Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
-  Loader2, ExternalLink, Play, Pause, SkipForward, Disc,
+  Loader2, ExternalLink, Play, Pause, SkipForward,
   Settings, KeyRound
 } from "lucide-react";
 import styles from "./page.module.css";
@@ -44,8 +44,8 @@ export default function Home() {
     skipTrack
   } = useMusicWS();
   
-  // Tab states for managing views: on mobile includes "player"
-  const [activeTab, setActiveTab] = useState<"player" | "search" | "queue" | "lyrics" | "related">("search");
+  // Mobile panels are accessed through the four icon-only tabs; playback stays in the bottom player.
+  const [activeTab, setActiveTab] = useState<"search" | "queue" | "lyrics" | "related">("search");
 
   // Mobile bottom player expansion drawer state
   const [mobilePlayerExpanded, setMobilePlayerExpanded] = useState(false);
@@ -353,16 +353,6 @@ export default function Home() {
                 <nav className={`glass-panel ${styles.tabsNav}`} aria-label="Music control panels">
                   <button
                     type="button"
-                    onClick={() => setActiveTab("player")}
-                    className={`${styles.tabBtn} ${styles.mobileOnlyTab} ${activeTab === "player" ? styles.activeTab : ""}`}
-                    aria-selected={activeTab === "player"}
-                    role="tab"
-                  >
-                    <Disc className={styles.tabIcon} />
-                    <span>Player</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setActiveTab("search")}
                     className={`${styles.tabBtn} ${activeTab === "search" ? styles.activeTab : ""}`}
                     aria-selected={activeTab === "search"}
@@ -411,11 +401,6 @@ export default function Home() {
 
                 {/* Scoped Tab Content Views */}
                 <div className={styles.tabContent}>
-                  {activeTab === "player" && (
-                    <div className={styles.mobilePlayerWrapper}>
-                      <PlayerControls />
-                    </div>
-                  )}
                   {activeTab === "search" && <SearchPanel />}
                   {activeTab === "queue" && <QueueList />}
                   {activeTab === "lyrics" && <LyricsPanel />}
@@ -431,7 +416,7 @@ export default function Home() {
       {voiceConnection && statistics?.track && (
         <>
           <div 
-            className={`glass-panel ${styles.mobilePlayBar} ${activeTab === "player" ? styles.mobilePlayBarHidden : ""}`}
+            className={`glass-panel ${styles.mobilePlayBar}`}
           >
             <div 
               className={styles.mobilePlayBarMain}

@@ -639,6 +639,83 @@
 
 @media (max-width: 768px) {
   .dashboardWrapper {
+    min-height: 100dvh;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .header {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 20;
+    padding: 12px 14px;
+    border-radius: 20px;
+  }
+
+  .headerControls { margin-left: auto; }
+  .connectionBadge span:not(.dot), .settingsText { display: none; }
+  .connectionBadge, .settingsBtn, .logoutBtn { min-width: 42px; min-height: 42px; padding: 10px; }
+  .connectionBadge { justify-content: center; }
+
+  .contentGrid { gap: 12px; }
+  .actionColumn { min-width: 0; }
+  .tabSection { gap: 12px; }
+  .tabsNav { margin-inline: -2px; border-radius: 16px; padding: 5px; }
+  .tabBtn { flex: 0 0 auto; min-width: 72px; min-height: 46px; padding: 8px 13px; border-radius: 12px; }
+  .tabBtn:focus-visible, .mobileBarBtn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+  .tabContent { min-width: 0; }
+
+  .mobilePlayBar {
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    min-height: 64px;
+    padding: 8px 10px;
+    border-radius: 18px;
+  }
+  .mobileArt { width: 44px; height: 44px; }
+  .mobileTitle { font-size: 0.86rem; }
+  .mobileArtist { font-size: 0.76rem; }
+  .mobileBarBtn { width: 44px; height: 44px; }
+  .mobileBarIcon { width: 18px; height: 18px; }
+
+  .mobileDrawer { height: 100dvh; padding-top: env(safe-area-inset-top, 0px); }
+  .drawerHeader { padding-top: 12px; }
+  .drawerContent { padding-inline: 16px; }
+}
+
+@media (max-width: 768px) {
+  .playerColumn { display: none; }
+  .mobileOnlyTab { display: none; }
+  .mobilePlayBarHidden { display: flex; }
+  .tabsNav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    overflow: visible;
+  }
+  .tabBtn {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 6px;
+    gap: 0;
+  }
+  .tabBtn > span:not(.tabBadge) { display: none; }
+  .tabIcon { width: 19px; height: 19px; }
+  .tabBadge { position: absolute; margin: -22px -22px 0 0; }
+  .tabBtn { position: relative; }
+}
+
+@media (max-width: 390px) {
+  .header { padding-inline: 10px; }
+  .username { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .levelBadge, .coinBadge { display: none; }
+  .tabBtn { min-width: 68px; padding-inline: 10px; }
+  .tabBtn span { font-size: 0.74rem; }
+  .mobileVisualizer { display: none; }
+}
+
+@media (max-width: 768px) {
+  .dashboardWrapper {
     padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   }
 

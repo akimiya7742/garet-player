@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, 
-  Lock, Unlock, Radio, Users, Volume2 
+  Lock, Unlock, Radio, Users
 } from "lucide-react";
 import { useMusicWS } from "../contexts/MusicWSContext";
 import { formatDuration } from "./QueueList";
@@ -90,7 +90,7 @@ export const PlayerControls: React.FC = () => {
 
       <div className={styles.topSection}>
         {/* Track Title and Artist details */}
-        <div className={styles.trackDetails}>
+        <div className={`${styles.trackDetails} ${styles.desktopTrackDetails}`}>
           {track ? (
             <>
               <h1 className={styles.title} title={track.title}>{track.title}</h1>
@@ -121,15 +121,27 @@ export const PlayerControls: React.FC = () => {
         )}
       </div>
 
-      {/* Main Vinyl disc layout */}
+      {/* Square album artwork */}
       <div className={styles.artworkSection}>
-        <div className={`${styles.vinylWrapper} ${isPlaying ? styles.rotating : ""}`}>
+        <div className={styles.squareArtworkWrapper}>
           <img 
             src={track?.thumbnail || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=500"} 
-            alt={track?.title || "xxx"}
+            alt={track?.title || "No track artwork"}
             className={styles.artworkImage}
           />
-          <div className={styles.vinylCenter} />
+        </div>
+        <div className={styles.mobileTrackDetails}>
+          {track ? (
+            <>
+              <h1 className={styles.title} title={track.title}>{track.title}</h1>
+              <p className={styles.artist}>{track.author || "Discord Bot Player"}</p>
+            </>
+          ) : (
+            <>
+              <h1 className={styles.title}>Not Playing</h1>
+              <p className={styles.artist}>No active track in voice connection</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -255,7 +267,6 @@ export const PlayerControls: React.FC = () => {
       {/* Embedded Volume Level */}
       <div className={styles.bottomSection}>
         <div className={styles.volumeWrapper}>
-          <Volume2 className={styles.volumeIcon} />
           <VolumeControl />
         </div>
       </div>
