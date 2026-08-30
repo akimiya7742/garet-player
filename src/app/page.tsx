@@ -11,6 +11,7 @@ import RelatedPanel from "../components/RelatedPanel";
 import Visualizer from "../components/Visualizer";
 import YouTubeBackground from "../components/YouTubeBackground";
 import SettingsModal from "../components/SettingsModal";
+import DiscordConnectModal from "../components/DiscordConnectModal";
 import { 
   LogIn, LogOut, Search, ListMusic, FileText, 
   Coins, Trophy, RefreshCw, AlertTriangle, ShieldCheck, Sparkles,
@@ -20,7 +21,7 @@ import {
 import styles from "./page.module.css";
 
 export default function Home() {
-  const { user, isAuthenticated, loading, isActivity, login, logout, setAuthToken } = useAuth();
+  const { user, isAuthenticated, loading, isActivity, isConnectModalOpen, authError, login, beginLogin, closeConnectModal, submitToken, logout, setAuthToken } = useAuth();
   const { 
     isConnected, 
     isWSAuthenticated, 
@@ -203,6 +204,14 @@ export default function Home() {
         <SettingsModal 
           isOpen={isSettingsOpen} 
           onClose={() => setIsSettingsOpen(false)} 
+        />
+        <DiscordConnectModal
+          isOpen={isConnectModalOpen}
+          isActivity={isActivity}
+          onClose={closeConnectModal}
+          onConnect={beginLogin}
+          onPasteToken={submitToken}
+          error={authError}
         />
       </main>
     );

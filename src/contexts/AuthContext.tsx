@@ -18,7 +18,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   isActivity: boolean;
+  isConnectModalOpen: boolean;
+  authError: string | null;
   login: () => void;
+  beginLogin: () => void;
+  closeConnectModal: () => void;
+  submitToken: (token: string) => Promise<void>;
   logout: () => void;
   setAuthToken: (token: string) => void;
 }
@@ -189,7 +194,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const login = () => {
+    setAuthError(null);
+    setIsConnectModalOpen(true);
+  };
+
+  const beginLogin = () => {
+    setIsConnectModalOpen(false);
     if (typeof window !== "undefined") {
       if (isActivity) {
         performDiscordActivityAuth();
@@ -231,6 +245,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const closeConnectModal = () => setIsConnectModalOpen(false);
+
+  const submitToken = async (pastedToken: string) => {
+    setAuthError(null);
+    try {
+      await fetchUserProfile(pastedToken);
+      setIsConnectModalOpen(false);
+    } catch {
+      setAuthError("That token could not be verified. Please try again.");
+    }
+  };
+
   const logout = () => {
     clearAuth();
     if (typeof window !== "undefined" && !isActivity) {
@@ -239,6 +265,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setAuthToken = (newToken: string) => {
+    setAuthError(null);
+    setIsConnectModalOpen(false);
     setToken(newToken);
     safeSetToken(newToken);
     setLoading(true);
@@ -255,7 +283,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated,
         loading,
         isActivity,
+        isConnectModalOpen,
+        authError,
         login,
+        beginLogin,
+        closeConnectModal,
+        submitToken,
         logout,
         setAuthToken,
       }}
