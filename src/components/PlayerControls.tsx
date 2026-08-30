@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, 
-  Lock, Unlock, Radio, Users, Volume2 
+  Lock, Unlock, Radio, Users
 } from "lucide-react";
 import { useMusicWS } from "../contexts/MusicWSContext";
 import { formatDuration } from "./QueueList";
@@ -267,7 +267,6 @@ export const PlayerControls: React.FC = () => {
       {/* Embedded Volume Level */}
       <div className={styles.bottomSection}>
         <div className={styles.volumeWrapper}>
-          <Volume2 className={styles.volumeIcon} />
           <VolumeControl />
         </div>
       </div>

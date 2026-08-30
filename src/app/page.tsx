@@ -416,7 +416,7 @@ export default function Home() {
       {voiceConnection && statistics?.track && (
         <>
           <div 
-            className={`glass-panel ${styles.mobilePlayBar} ${activeTab === "player" ? styles.mobilePlayBarHidden : ""}`}
+            className={`glass-panel ${styles.mobilePlayBar}`}
           >
             <div 
               className={styles.mobilePlayBarMain}
