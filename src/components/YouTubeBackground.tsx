@@ -285,13 +285,14 @@ export const YouTubeBackground: React.FC = () => {
       containerRef.current.appendChild(node);
     }
 
-    try {
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch {}
-      }
+    // Keep one iframe instance for the current track. Playback and seeking are
+    // synchronized by the effects below; recreating the player on every
+    // timestamp/pause update causes the visible fallback blink.
+    if (playerRef.current) {
+      return;
+    }
 
+    try {
       playerRef.current = new window.YT.Player(targetDivId, {
         videoId: videoId,
         playerVars: {
