@@ -182,6 +182,40 @@ export const MusicWSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [backendUrl, getWSUrl, token, isAuthenticated]);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.pathname === "/sample") {
+      setIsConnected(true);
+      setIsWSAuthenticated(true);
+      setVoiceConnection({
+        channel: { id: "sample-channel", name: "Lofi Lounge" },
+        guild: { id: "sample-guild", name: "Garret Community" },
+      });
+      setStatistics({
+        timestamp: Date.now(),
+        listeners: 42,
+        tracks: 8,
+        volume: 72,
+        paused: false,
+        repeatMode: "queue",
+        autoPlay: true,
+        lockStatus: false,
+        track: {
+          title: "Midnight City",
+          url: "https://www.youtube.com/watch?v=dX3k_QDnzHE",
+          duration: 243000,
+          thumbnail: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=85",
+          author: "M83",
+        },
+        queue: [
+          { title: "Sunset Lover", url: "https://example.com/sunset-lover", duration: 235000, thumbnail: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=400&q=80", author: "Petit Biscuit" },
+          { title: "A Moment Apart", url: "https://example.com/a-moment-apart", duration: 225000, thumbnail: "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&q=80", author: "ODESZA" },
+        ],
+        related: [
+          { title: "Outro", url: "https://example.com/outro", duration: 245000, thumbnail: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafb9?w=400&q=80", author: "M83" },
+        ],
+      });
+      return;
+    }
+
     if (isAuthenticated && token) {
       connectWS();
     } else {

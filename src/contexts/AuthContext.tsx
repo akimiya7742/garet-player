@@ -184,6 +184,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (window.location.pathname === "/sample") {
+        setUser({
+          id: "sample-user",
+          username: "Sample Listener",
+          avatar: null,
+          level: 24,
+          coin: 1280,
+          xp: 76,
+        });
+        setToken("sample-token");
+        setLoading(false);
+        return;
+      }
+
       const isActivity = isDiscordActivity();
       setIsActivity(!!isActivity);
 
