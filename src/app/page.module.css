@@ -555,13 +555,13 @@
 .tabsNav {
   display: flex;
   padding: 6px;
-  border-radius: var(--border-radius-sm);
+  border-radius: 999px;
   gap: 4px;
 }
 
 .tabBtn {
   flex: 1;
-  background: none;
+  background: transparent;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;

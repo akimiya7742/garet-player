@@ -125,7 +125,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className={styles.loadingWrapper}>
-        <div className="glass-panel" style={{ padding: "40px", textAlign: "center" }}>
+        <div className="content-surface" style={{ padding: "40px", textAlign: "center" }}>
           <div className={styles.pulseSpinner} />
           <h2 style={{ fontFamily: "var(--font-title)", marginTop: "20px" }}>
             {isActivity ? "Authorizing with Discord..." : "Loading Music System..."}
@@ -185,7 +185,7 @@ export default function Home() {
           </div>
 
           {/* Quick Mock Card Preview */}
-          <div className={`${styles.previewCard} glass-panel pulse-glow`}>
+          <div className={`${styles.previewCard} content-surface pulse-glow`}>
             <div className={styles.previewHeader}>
               <div className={styles.previewDot} style={{ backgroundColor: "var(--accent-success)" }} />
               <span>Preview Node Connection • Offline</span>
@@ -313,7 +313,7 @@ export default function Home() {
           <section className={styles.actionColumn}>
             {/* Warning when active Voice Connection is missing */}
             {!voiceConnection ? (
-              <div className={`glass-panel ${styles.voiceWarning}`}>
+              <div className={`content-surface ${styles.voiceWarning}`}>
                 <AlertTriangle className={styles.warningIcon} />
                 <h3 className={styles.warningTitle}>Not Connected to Voice</h3>
                 <p className={styles.warningText}>

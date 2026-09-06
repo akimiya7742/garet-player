@@ -81,7 +81,7 @@ export const PlayerControls: React.FC = () => {
   const progressPercent = totalDuration > 0 ? (localTime / totalDuration) * 100 : 0;
 
   return (
-    <div className={`glass-panel ${styles.playerConsole}`}>
+    <div className={`content-surface ${styles.playerConsole}`}>
       {/* Dynamic Ambient Background Cover */}
       <div 
         className={styles.ambientCover} 
