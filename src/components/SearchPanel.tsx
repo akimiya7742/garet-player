@@ -75,7 +75,7 @@ export const SearchPanel: React.FC = () => {
 	};
 
 	return (
-		<div className={`glass-panel ${styles.searchContainer}`}>
+		<div className={`content-surface ${styles.searchContainer}`}>
 			<form onSubmit={handleSearchSubmit} className={styles.searchBar}>
 				<Search className={styles.searchIcon} />
 				<input

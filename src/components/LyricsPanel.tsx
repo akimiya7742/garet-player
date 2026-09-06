@@ -404,7 +404,7 @@ export const LyricsPanel: React.FC = () => {
   };
 
   return (
-    <div className={`glass-panel ${styles.lyricsContainer}`}>
+    <div className={`content-surface ${styles.lyricsContainer}`}>
       <div className={styles.header}>
         <div className={styles.titleWrapper}>
           <FileText className={styles.headerIcon} />

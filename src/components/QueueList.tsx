@@ -19,7 +19,7 @@ export const QueueList: React.FC = () => {
   const queue = statistics?.queue ?? [];
 
   return (
-    <div className={`glass-panel ${styles.queueContainer}`}>
+    <div className={`content-surface ${styles.queueContainer}`}>
       <div className={styles.header}>
         <div className={styles.titleWrapper}>
           <ListMusic className={styles.headerIcon} />

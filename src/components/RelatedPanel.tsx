@@ -11,7 +11,7 @@ export const RelatedPanel: React.FC = () => {
   const related = statistics?.related ?? [];
 
   return (
-    <div className={`glass-panel ${styles.relatedContainer}`}>
+    <div className={`content-surface ${styles.relatedContainer}`}>
       <div className={styles.header}>
         <div className={styles.titleWrapper}>
           <Sparkles className={styles.headerIcon} />
