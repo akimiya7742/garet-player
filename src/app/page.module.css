@@ -642,7 +642,10 @@
 
 @media (max-width: 768px) {
   .dashboardWrapper {
+    height: auto;
+    max-height: none;
     min-height: 100dvh;
+    overflow: visible;
     padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
   }
 

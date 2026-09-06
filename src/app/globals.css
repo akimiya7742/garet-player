@@ -79,6 +79,7 @@ body {
     min-height: 100%;
     overflow-y: auto;
     overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

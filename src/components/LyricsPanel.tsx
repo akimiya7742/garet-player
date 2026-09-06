@@ -26,6 +26,15 @@ interface SyncedLine {
   text: string;
 }
 
+const SAMPLE_LYRICS = `[00:00.00]Neon lights are waking up the night
+[00:08.00]Every heartbeat finds a rhythm
+[00:16.00]We are moving through the city
+[00:24.00]Like a signal in the dark
+[00:32.00]Hold the moment, let it carry
+[00:40.00]Past the noise and into tomorrow
+[00:48.00]When the final echoes fade
+[00:56.00]We will still be glowing`;
+
 function parseLRC(raw: string): { lines: SyncedLine[]; isSynced: boolean } {
   const lrcRegex = /^\[\s*(\d{1,3})\s*:\s*(\d{2})(?:\s*[.:]\s*(\d+))?\s*\]\s*(.*)/;
   const lines: SyncedLine[] = [];
@@ -327,6 +336,19 @@ export const LyricsPanel: React.FC = () => {
   }, [trackTitle, fetchLyrics]);
 
   useEffect(() => {
+    const isSampleRoute = window.location.pathname === "/sample";
+
+    if (isSampleRoute && trackTitle && trackUrl) {
+      setSearchQuery(trackTitle);
+      setError(null);
+      setLoading(false);
+      setLyrics(SAMPLE_LYRICS);
+      setRomanizedLines([]);
+      setRomajiSource(null);
+      hasBuiltInRef.current = true;
+      return;
+    }
+
     if (trackTitle && trackUrl) {
       setSearchQuery(trackTitle);
       const cleanedTitle = trackTitle
