@@ -650,11 +650,16 @@
   }
 
   .header {
-    position: sticky;
-    top: env(safe-area-inset-top, 0px);
-    z-index: 20;
-    padding: 12px 14px;
-    border-radius: 20px;
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 40;
+  isolation: isolate;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: rgba(8, 11, 24, 0.96);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  box-shadow: 0 10px 24px rgba(3, 5, 16, 0.28);
   }
 
   .headerControls { margin-left: auto; }

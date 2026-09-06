@@ -374,8 +374,10 @@
   }
 
   .scrollArea {
+    min-height: 0;
     max-height: calc(100dvh - 270px);
     overflow-y: auto;
+    overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
 
