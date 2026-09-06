@@ -71,6 +71,17 @@ body {
   line-height: 1.5;
 }
 
+/* Desktop stays viewport-locked; mobile can scroll through stacked content. */
+@media (max-width: 768px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
+}
+
 /* Premium Dynamic Ambient Backdrop */
 body::before {
   content: '';
