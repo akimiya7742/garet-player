@@ -211,7 +211,10 @@
 
 /* Dashboard Console Layout */
 .dashboardWrapper {
-  min-height: 100vh;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   padding-bottom: 80px; /* Offset for floating mobile bar */
 }
 
